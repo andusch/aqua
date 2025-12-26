@@ -31,5 +31,11 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
-  }
+  },
+  "permissions": [
+    "dialog:default",
+    "fs:default",
+    "fs:allow-read-text-file",
+    "fs:allow-write-text-file"
+  ]
 }
