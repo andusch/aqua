@@ -1,5 +1,5 @@
 import { Component } from 'solid-js';
-import Editor from './Editor';
+import Editor from './Editor.tsx';
 import './App.css';
 
 const App: Component = () => {
