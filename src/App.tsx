@@ -1,10 +1,10 @@
 import { Component } from 'solid-js';
-import Editor from './Editor.tsx';
+import Editor from './Editor';
 import './App.css';
 
 const App: Component = () => {
   return (
-    <div class="container">
+    <div class="app">
       <Editor />
     </div>
   );
