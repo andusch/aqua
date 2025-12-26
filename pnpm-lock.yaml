@@ -38,12 +38,30 @@ importers:
       '@tauri-apps/plugin-opener':
         specifier: ^2
         version: 2.5.2
+      '@types/dompurify':
+        specifier: ^3.2.0
+        version: 3.2.0
+      '@types/marked':
+        specifier: ^6.0.0
+        version: 6.0.0
+      dompurify:
+        specifier: ^3.3.1
+        version: 3.3.1
+      highlight.js:
+        specifier: ^11.11.1
+        version: 11.11.1
       idb:
         specifier: ^8.0.3
         version: 8.0.3
+      marked:
+        specifier: ^17.0.1
+        version: 17.0.1
       solid-js:
         specifier: ^1.9.3
         version: 1.9.10
+      solid-split-pane:
+        specifier: ^0.0.5
+        version: 0.0.5
     devDependencies:
       '@tauri-apps/cli':
         specifier: ^2
@@ -606,8 +624,19 @@ packages:
   '@types/babel__traverse@7.28.0':
     resolution: {integrity: sha512-8PvcXf70gTDZBgt9ptxJ8elBeBjcLOAcOtoO/mPJjtji1+CdGbHgm77om1GrsPxsiE+uXIpNSK64UYaIwQXd4Q==}
 
+  '@types/dompurify@3.2.0':
+    resolution: {integrity: sha512-Fgg31wv9QbLDA0SpTOXO3MaxySc4DKGLi8sna4/Utjo4r3ZRPdCt4UQee8BWr+Q5z21yifghREPJGYaEOEIACg==}
+    deprecated: This is a stub types definition. dompurify provides its own type definitions, so you do not need this installed.
+
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
+
+  '@types/marked@6.0.0':
+    resolution: {integrity: sha512-jmjpa4BwUsmhxcfsgUit/7A9KbrC48Q0q8KvnY107ogcjGgTFDlIL3RpihNpx2Mu1hM4mdFQjoVc4O6JoGKHsA==}
+    deprecated: This is a stub types definition. marked provides its own type definitions, so you do not need this installed.
+
+  '@types/trusted-types@2.0.7':
+    resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
 
   babel-plugin-jsx-dom-expressions@0.40.3:
     resolution: {integrity: sha512-5HOwwt0BYiv/zxl7j8Pf2bGL6rDXfV6nUhLs8ygBX+EFJXzBPHM/euj9j/6deMZ6wa52Wb2PBaAV5U/jKwIY1w==}
@@ -653,6 +682,9 @@ packages:
       supports-color:
         optional: true
 
+  dompurify@3.3.1:
+    resolution: {integrity: sha512-qkdCKzLNtrgPFP1Vo+98FRzJnBRGe4ffyCea9IwHB1fyxPOeNTHpLKYGd4Uk9xvNoH0ZoOjwZxNptyMwqrId1Q==}
+
   electron-to-chromium@1.5.267:
     resolution: {integrity: sha512-0Drusm6MVRXSOJpGbaSVgcQsuB4hEkMpHXaVstcPmhu5LIedxs1xNK/nIxmQIU/RPC0+1/o0AVZfBTkTNJOdUw==}
 
@@ -687,6 +719,10 @@ packages:
     resolution: {integrity: sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg==}
     engines: {node: '>=6.9.0'}
 
+  highlight.js@11.11.1:
+    resolution: {integrity: sha512-Xwwo44whKBVCYoliBQwaPvtd/2tYFkRQtXDWj1nackaV2JPXx3L0+Jvd8/qCJ2p+ML0/XVkJ2q+Mr+UVdpJK5w==}
+    engines: {node: '>=12.0.0'}
+
   html-entities@2.3.3:
     resolution: {integrity: sha512-DV5Ln36z34NNTDgnz0EWGBLZENelNAtkiFA4kyNOG2tDI6Mz1uSWiq1wAKdyjnJwyDiDO7Fa2SO1CTxPXL8VxA==}
 
@@ -712,6 +748,11 @@ packages:
 
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
+
+  marked@17.0.1:
+    resolution: {integrity: sha512-boeBdiS0ghpWcSwoNm/jJBwdpFaMnZWRzjA6SkUMYb40SVaN1x7mmfGKp0jvexGcx+7y2La5zRZsYFZI6Qpypg==}
+    engines: {node: '>= 20'}
+    hasBin: true
 
   merge-anything@5.1.7:
     resolution: {integrity: sha512-eRtbOb1N5iyH0tkQDAoQ4Ipsp/5qSR79Dzrz8hEPxRX10RWWR/iQXdoKmBSRCThY1Fh5EhISDtpSc93fpxUniQ==}
@@ -769,9 +810,15 @@ packages:
     peerDependencies:
       solid-js: ^1.3
 
+  solid-split-pane@0.0.5:
+    resolution: {integrity: sha512-VhcbEAoVITw14Q0bt1+yOHfUYeZ4m+mkAQyCPrkwShB373O2G6bfkwJZZ3mBj0Nr09En5mjFDslteSbSz8Lolw==}
+
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
+
+  split.js@1.6.5:
+    resolution: {integrity: sha512-mPTnGCiS/RiuTNsVhCm9De9cCAUsrNFFviRbADdKiiV+Kk8HKp/0fWu7Kr8pi3/yBmsqLFHuXGT9UUZ+CNLwFw==}
 
   style-mod@4.1.3:
     resolution: {integrity: sha512-i/n8VsZydrugj3Iuzll8+x/00GH2vnYsk1eomD8QiRrSAeW6ItbCQDtfXCeJHd0iwiNagqjQkvpvREEPtW3IoQ==}
@@ -1391,7 +1438,18 @@ snapshots:
     dependencies:
       '@babel/types': 7.28.5
 
+  '@types/dompurify@3.2.0':
+    dependencies:
+      dompurify: 3.3.1
+
   '@types/estree@1.0.8': {}
+
+  '@types/marked@6.0.0':
+    dependencies:
+      marked: 17.0.1
+
+  '@types/trusted-types@2.0.7':
+    optional: true
 
   babel-plugin-jsx-dom-expressions@0.40.3(@babel/core@7.28.5):
     dependencies:
@@ -1430,6 +1488,10 @@ snapshots:
   debug@4.4.3:
     dependencies:
       ms: 2.1.3
+
+  dompurify@3.3.1:
+    optionalDependencies:
+      '@types/trusted-types': 2.0.7
 
   electron-to-chromium@1.5.267: {}
 
@@ -1475,6 +1537,8 @@ snapshots:
 
   gensync@1.0.0-beta.2: {}
 
+  highlight.js@11.11.1: {}
+
   html-entities@2.3.3: {}
 
   idb@8.0.3: {}
@@ -1490,6 +1554,8 @@ snapshots:
   lru-cache@5.1.1:
     dependencies:
       yallist: 3.1.1
+
+  marked@17.0.1: {}
 
   merge-anything@5.1.7:
     dependencies:
@@ -1566,7 +1632,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  solid-split-pane@0.0.5:
+    dependencies:
+      solid-js: 1.9.10
+      split.js: 1.6.5
+
   source-map-js@1.2.1: {}
+
+  split.js@1.6.5: {}
 
   style-mod@4.1.3: {}
 

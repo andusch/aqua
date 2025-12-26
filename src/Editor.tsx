@@ -11,7 +11,11 @@ import { open, save } from '@tauri-apps/plugin-dialog';
 import { readTextFile, writeFile } from '@tauri-apps/plugin-fs';
 import { listen } from '@tauri-apps/api/event';
 
-const Editor = () => {
+interface EditorProps {
+  onChange?: (text: string) => void;
+}
+
+const Editor = (props: EditorProps) => {
   let parentEl: HTMLDivElement;
   const [view, setView] = createSignal<EditorView>();
 
@@ -27,7 +31,13 @@ const Editor = () => {
         markdown(),
         oneDark,
         EditorView.updateListener.of((up) => {
-          if (up.docChanged) debounce(() => saveDoc(up.state.doc.toString()));
+          if (up.docChanged) {
+            const txt = up.state.doc.toString();
+            debounce(() => {
+              saveDoc(txt);
+              props.onChange?.(txt);
+            });
+          }
         }),
       ],
     });
@@ -59,7 +69,7 @@ const Editor = () => {
         if (!path) return;
         (window as any).__CURRENT_PATH__ = path;
       }
-      await writeFile(path, text);
+      await writeFile(path, new TextEncoder().encode(text));
     });
   });
 
