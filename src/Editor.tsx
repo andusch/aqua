@@ -2,13 +2,15 @@
 import { onMount } from 'solid-js';
 
 const Editor = () => {
-  let ref: HTMLDivElement;
+  let ref: HTMLDivElement | null = null;
 
   onMount(() => {
-    ref.innerText = 'Replace me with CodeMirror in 1.2';
+    if (ref) {
+      ref.innerText = 'Replace me with CodeMirror in 1.2';
+    }
   });
 
-  return <div ref={ref!} class="editor" style={{ height: '100%' }} />;
+  return <div ref={(el) => (ref = el)} class="editor" style={{ height: '100%' }} />;
 };
 
 export default Editor;
