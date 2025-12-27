@@ -3,7 +3,7 @@ name = "aqua"
 version = "0.1.0"
 description = "A Tauri App"
 authors = ["Ioan-Alexandru Scheusan"]
-edition = "2025"
+edition = "2024"
 
 [lib]
 # The `_lib` suffix may seem redundant but it is necessary
