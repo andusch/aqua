@@ -1,8 +1,7 @@
 import { onMount, createSignal } from 'solid-js';
 import { EditorState } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
-import { keymap } from '@codemirror/view';
-import { defaultKeymap } from '@codemirror/commands';
+import { EditorView, keymap } from '@codemirror/view';
+import { defaultKeymap, indentWithTab } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
@@ -24,11 +23,14 @@ const Editor = (props: EditorProps) => {
     await initDB();
     const saved = (await loadDoc()) ?? '# Hello Aqua\nStart typing…';
 
-    // create CM6 instance
+    // create CM6 instance with standard tab behavior
     const state = EditorState.create({
       doc: saved,
       extensions: [
-        keymap.of(defaultKeymap),
+        keymap.of([
+          ...defaultKeymap,
+          indentWithTab // This handles Tab for indentation
+        ]),
         markdown(),
         oneDark,
         syntaxHighlighting(defaultHighlightStyle),

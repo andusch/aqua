@@ -12,7 +12,7 @@ const SplitPane = (props: SplitPaneProps) => {
   const [isDragging, setIsDragging] = createSignal(false);
   const [size, setSize] = createSignal(props.defaultSize || 50);
   
-  let containerRef: HTMLDivElement;
+  let containerRef: HTMLDivElement | undefined;
   let startPos = 0;
   let startSize = 0;
 
