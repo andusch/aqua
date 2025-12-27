@@ -1,10 +1,11 @@
-// web/src/Editor.tsx
 import { onMount, createSignal } from 'solid-js';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { basicSetup } from '@codemirror/basic-setup';
+import { keymap } from '@codemirror/view';
+import { defaultKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
+import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
 import { initDB, saveDoc, loadDoc } from './store';
 // Tauri APIs
 import { open, save } from '@tauri-apps/plugin-dialog';
@@ -27,9 +28,10 @@ const Editor = (props: EditorProps) => {
     const state = EditorState.create({
       doc: saved,
       extensions: [
-        basicSetup,
+        keymap.of(defaultKeymap),
         markdown(),
         oneDark,
+        syntaxHighlighting(defaultHighlightStyle),
         EditorView.updateListener.of((up) => {
           if (up.docChanged) {
             const txt = up.state.doc.toString();

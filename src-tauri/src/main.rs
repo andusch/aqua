@@ -1,3 +1,5 @@
+// src-tauri/src/main.rs
+
 use tauri::menu::{Menu, MenuItem, Submenu};
 use tauri::{command, generate_context, generate_handler, Builder, Manager, State};
 

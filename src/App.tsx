@@ -1,7 +1,7 @@
 import { Component, createSignal } from "solid-js";
-import { SplitPane } from "solid-split-pane";
+import Resizable from '@corvu/resizable';
 import Editor from "./Editor";
-import Preview from "./Preview.tsx";
+import Preview from "./Preview";
 import "./App.css";
 
 const App: Component = () => {
@@ -9,15 +9,30 @@ const App: Component = () => {
 
   return (
     <div class="app">
-      <SplitPane
-        direction="vertical"
-        minSize={200}
-        // defaultSize={50}
-        // resizerClass="resizer"
-      >
-        <Editor onChange={setMd} />
-        <Preview markdown={md()} />
-      </SplitPane>
+      <Resizable class="resizable-container">
+        <Resizable.Panel
+          initialSize={0.5}
+          minSize={0.2}
+          class="editor-panel"
+        >
+          <Editor onChange={setMd} />
+        </Resizable.Panel>
+        
+        <Resizable.Handle
+          aria-label="Resize Handle"
+          class="resize-handle"
+        >
+          <div class="resize-indicator" />
+        </Resizable.Handle>
+        
+        <Resizable.Panel
+          initialSize={0.5}
+          minSize={0.2}
+          class="preview-panel"
+        >
+          <Preview markdown={md()} />
+        </Resizable.Panel>
+      </Resizable>
     </div>
   );
 };
