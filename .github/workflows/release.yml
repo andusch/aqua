@@ -4,6 +4,9 @@ on:
     branches: [master]
     tags: ['v*']
 
+permissions:
+  contents: read
+
 jobs:
   build:
     strategy:
