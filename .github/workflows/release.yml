@@ -10,11 +10,11 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            args: '--bundles deb,appimage'
+            bundles: 'deb,appimage'
           - os: macos-latest
-            args: '--bundles dmg,macos'
+            bundles: 'dmg'
           - os: windows-latest
-            args: '--bundles msi'
+            bundles: 'msi'
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -46,7 +46,7 @@ jobs:
         run: pnpm add -D @tauri-apps/cli
 
       - name: build & bundle
-        run: pnpm tauri build ${{ matrix.args }}
+        run: pnpm tauri build --bundles ${{ matrix.bundles }}
 
       - name: upload artifacts (ubuntu)
         if: matrix.os == 'ubuntu-latest'
@@ -64,7 +64,6 @@ jobs:
           name: aqua-macos
           path: |
             src-tauri/target/release/bundle/dmg/*.dmg
-            src-tauri/target/release/bundle/macos/*.app
 
       - name: upload artifacts (windows)
         if: matrix.os == 'windows-latest'
@@ -73,4 +72,3 @@ jobs:
           name: aqua-windows
           path: |
             src-tauri/target/release/bundle/msi/*.msi
-            src-tauri/target/release/bundle/nsis/*.exe
