@@ -4,18 +4,15 @@
   "description": "Default capability for aqua",
   "windows": ["main"],
   "permissions": [
-    "core:path:default",
-    "core:event:default",
-    "core:window:default",
-    "core:app:default",
-    "core:resources:default",
-    "core:menu:default",
-    "core:tray:default",
+    "core:default",
     "opener:default",
-    "fs:allow-read-text-file",
-    "fs:allow-write-text-file",
-    "fs:default",
-    "event:allow-emit",
-    "event:allow-listen"
+    "fs:allow-read",
+    "fs:allow-write",
+    "fs:allow-exists",
+    "fs:allow-create",
+    "fs:allow-read-dir",
+    "fs:allow-remove",
+    "fs:allow-rename",
+    "fs:allow-copy-file"
   ]
 }
