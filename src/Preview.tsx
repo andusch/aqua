@@ -5,7 +5,7 @@ import DOMPurify from 'dompurify';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css';
 import { throttle } from 'lodash';
-import './CheckboxExtension'; // registers checkbox renderer
+import './CheckboxExtension'; // registers checkbox + arrow renderer
 
 const marked = new Marked(
   markedHighlight({
@@ -18,6 +18,30 @@ const marked = new Marked(
   })
 );
 marked.setOptions({ breaks: true, gfm: true });
+
+/* ----------  pretty arrows in preview only  ---------- */
+const arrowExtension = {
+  name: 'arrow',
+  level: 'inline' as const,
+  start(src: string) {
+    return src.search(/<->|->|<-/);
+  },
+  tokenizer(src: string) {
+    const match = src.match(/^(<->|->|<-)/);
+    if (!match) return undefined;
+    const map: Record<string, string> = { '->': '→', '<-': '←', '<->': '↔' };
+    return {
+      type: 'arrow',
+      raw: match[0],
+      text: map[match[0]],
+    };
+  },
+  renderer(token: any) {
+    return token.text;
+  },
+};
+
+marked.use({ extensions: [arrowExtension] });
 
 interface PreviewProps {
   markdown: string;
@@ -57,7 +81,6 @@ const Preview = (props: PreviewProps) => {
       const lines = props.markdown.split('\n');
       if (idx < 0 || idx >= lines.length) return;
 
-      /* toggle the line */
       const line = lines[idx];
       const newLine = target.checked
         ? line.replace('[ ]', '[x]')
