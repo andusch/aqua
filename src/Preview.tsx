@@ -5,6 +5,7 @@ import DOMPurify from 'dompurify';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css';
 import { throttle } from 'lodash';
+import './CheckboxExtension'; // registers checkbox renderer
 
 const marked = new Marked(
   markedHighlight({
@@ -24,9 +25,8 @@ interface PreviewProps {
 
 const Preview = (props: PreviewProps) => {
   let containerRef: HTMLDivElement | undefined;
-  let lastExternalScroll = 0; // epoch ms
+  let lastExternalScroll = 0;
 
-  /*  human scroll  →  send percentage  (throttled)  */
   const handlePreviewScroll = throttle(() => {
     if (Date.now() - lastExternalScroll < 100) return;
     if (!containerRef) return;
@@ -35,16 +35,39 @@ const Preview = (props: PreviewProps) => {
     window.dispatchEvent(new CustomEvent('preview-scroll', { detail: pct }));
   }, 50);
 
-  /*  editor scroll  →  move preview  */
   onMount(() => {
     const handleEditorScroll = (e: any) => {
       if (!containerRef) return;
-      lastExternalScroll = Date.now(); // mark “we are moving it”
+      lastExternalScroll = Date.now();
       const scrollHeight = containerRef.scrollHeight - containerRef.clientHeight;
       containerRef.scrollTop = e.detail * scrollHeight;
     };
     window.addEventListener('editor-scroll', handleEditorScroll);
     return () => window.removeEventListener('editor-scroll', handleEditorScroll);
+  });
+
+  /* checkbox ticking -> editor */
+  onMount(() => {
+    containerRef!.addEventListener('change', (e) => {
+      const target = e.target as HTMLInputElement;
+      if (target.tagName !== 'INPUT' || !target.matches('[data-checkbox]')) return;
+
+      const label = target.parentElement!;
+      const idx = Array.from(containerRef!.children).indexOf(label);
+      const lines = props.markdown.split('\n');
+      if (idx < 0 || idx >= lines.length) return;
+
+      /* toggle the line */
+      const line = lines[idx];
+      const newLine = target.checked
+        ? line.replace('[ ]', '[x]')
+        : line.replace('[x]', '[ ]');
+
+      lines[idx] = newLine;
+      window.dispatchEvent(
+        new CustomEvent('checkbox-change', { detail: lines.join('\n') })
+      );
+    });
   });
 
   createEffect(() => {
