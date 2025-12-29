@@ -1,43 +1,32 @@
-import { onMount, createSignal } from "solid-js";
-import { EditorState, StateEffect, StateField } from "@codemirror/state";
-import {
-  EditorView,
-  keymap,
-  Decoration,
-  DecorationSet,
-  ViewPlugin,
-  ViewUpdate,
-} from "@codemirror/view";
-import { defaultKeymap, indentWithTab, undo, redo } from "@codemirror/commands";
-import { markdown } from "@codemirror/lang-markdown";
-import { oneDark } from "@codemirror/theme-one-dark";
-import {
-  syntaxHighlighting,
-  defaultHighlightStyle,
-} from "@codemirror/language";
-import { initDB, saveDoc, loadDoc } from "./store";
-import { open, save } from "@tauri-apps/plugin-dialog";
-import { readTextFile, writeFile } from "@tauri-apps/plugin-fs";
-import { listen } from "@tauri-apps/api/event";
-import { invoke } from "@tauri-apps/api/core";
-import { throttle } from "lodash";
-import { insertNewlineAndIndent } from "@codemirror/commands";
+import { onMount, createSignal } from 'solid-js';
+import { EditorState } from '@codemirror/state';
+import { EditorView, keymap } from '@codemirror/view';
+import { defaultKeymap, indentWithTab } from '@codemirror/commands';
+import { markdown } from '@codemirror/lang-markdown';
+import { oneDark } from '@codemirror/theme-one-dark';
+import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
+import { initDB, saveDoc, loadDoc } from './store';
+import { open, save } from '@tauri-apps/plugin-dialog';
+import { readTextFile, writeFile } from '@tauri-apps/plugin-fs';
+import { listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
+import { throttle } from 'lodash';
 
 interface EditorProps {
   onChange?: (text: string) => void;
 }
 
-/* ----------  clipboard helpers  ---------- */
 async function copyToClipboard(text: string) {
   if ((window as any).__TAURI__) {
-    await invoke("clipboard_write", { text });
+    await invoke('clipboard_write', { text });
   } else {
     await navigator.clipboard.writeText(text);
   }
 }
+
 async function readFromClipboard(): Promise<string> {
   if ((window as any).__TAURI__) {
-    return invoke("clipboard_read");
+    return invoke('clipboard_read');
   } else {
     return navigator.clipboard.readText();
   }
@@ -91,15 +80,15 @@ const Editor = (props: EditorProps) => {
     (window as any).__currentEditorView = v; // for widget
     setView(v);
 
-    /* ----------  menu & keyboard shortcuts  ---------- */
-    listen("menu-new", () =>
-      v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: "" } })
+    /* ----------  menu events  ---------- */
+    listen('menu-new', () =>
+      v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: '' } })
     );
 
-    listen("menu-open", async () => {
+    listen('menu-open', async () => {
       const selected = await open({
         multiple: false,
-        filters: [{ name: "Markdown", extensions: ["md"] }],
+        filters: [{ name: 'Markdown', extensions: ['md'] }],
       });
       if (!selected) return;
       const path = Array.isArray(selected) ? selected[0] : selected;
@@ -115,7 +104,7 @@ const Editor = (props: EditorProps) => {
       let path = (window as any).__CURRENT_PATH__;
       if (!path) {
         path = await save({
-          filters: [{ name: "Markdown", extensions: ["md"] }],
+          filters: [{ name: 'Markdown', extensions: ['md'] }],
         });
         if (!path) return;
         (window as any).__CURRENT_PATH__ = path;
@@ -123,37 +112,41 @@ const Editor = (props: EditorProps) => {
       await writeFile(path, new TextEncoder().encode(text));
     });
 
-    /* ----------  edit commands  ---------- */
+    /* ----------  keyboard shortcuts  ---------- */
+    const undo = () => v.dispatch({ effects: EditorView.undo });
+    const redo = () => v.dispatch({ effects: EditorView.redo });
     const selectAll = () =>
       v.dispatch({ selection: { anchor: 0, head: v.state.doc.length } });
 
-    listen("undo", () => undo(v));
-    listen("redo", () => redo(v));
-    listen("select-all", () => selectAll());
+    listen('undo', () => undo());
+    listen('redo', () => redo());
+    listen('select-all', () => selectAll());
 
-    listen("copy", async () => {
+    listen('copy', async () => {
       const sel = v.state.selection.main;
       if (!sel.empty) {
         const text = v.state.doc.sliceString(sel.from, sel.to);
         await copyToClipboard(text);
       }
     });
-    listen("cut", async () => {
+
+    listen('cut', async () => {
       const sel = v.state.selection.main;
       if (!sel.empty) {
         const text = v.state.doc.sliceString(sel.from, sel.to);
         await copyToClipboard(text);
-        v.dispatch({ changes: { from: sel.from, to: sel.to, insert: "" } });
+        v.dispatch({ changes: { from: sel.from, to: sel.to, insert: '' } });
       }
     });
-    listen("paste", async () => {
+
+    listen('paste', async () => {
       const text = await readFromClipboard();
       v.dispatch(v.state.replaceSelection(text));
     });
 
-    /* ----------  scroll sync  ---------- */
-    window.addEventListener("preview-scroll", (e: any) => {
-      const scrollable = parentEl.querySelector(".cm-scroller") as HTMLElement;
+    /* ----------  scroll sync from preview  ---------- */
+    window.addEventListener('preview-scroll', (e: any) => {
+      const scrollable = parentEl.querySelector('.cm-scroller') as HTMLElement;
       if (!scrollable) return;
       lastExternalScroll = Date.now();
       const scrollHeight = scrollable.scrollHeight - scrollable.clientHeight;
