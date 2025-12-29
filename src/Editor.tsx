@@ -9,18 +9,34 @@ import { initDB, saveDoc, loadDoc } from './store';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { readTextFile, writeFile } from '@tauri-apps/plugin-fs';
 import { listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 import { throttle } from 'lodash';
 
 interface EditorProps {
   onChange?: (text: string) => void;
 }
 
+async function copyToClipboard(text: string) {
+  if ((window as any).__TAURI__) {
+    await invoke('clipboard_write', { text });
+  } else {
+    await navigator.clipboard.writeText(text);
+  }
+}
+
+async function readFromClipboard(): Promise<string> {
+  if ((window as any).__TAURI__) {
+    return invoke('clipboard_read');
+  } else {
+    return navigator.clipboard.readText();
+  }
+}
+
 const Editor = (props: EditorProps) => {
   let parentEl: HTMLDivElement;
   const [view, setView] = createSignal<EditorView>();
 
-  /* ----------  scroll-sync lock (timestamp based)  ---------- */
-  let lastExternalScroll = 0; // epoch ms
+  let lastExternalScroll = 0;
 
   onMount(async () => {
     await initDB();
@@ -42,10 +58,8 @@ const Editor = (props: EditorProps) => {
             });
           }
         }),
-        /*  human scroll  →  send percentage  (throttled)  */
         EditorView.domEventHandlers({
           scroll: throttle((event, _view) => {
-            // ignore if we triggered this scroll < 100 ms ago
             if (Date.now() - lastExternalScroll < 100) return;
             const el = event.target as HTMLElement;
             const pct = el.scrollTop / (el.scrollHeight - el.clientHeight);
@@ -58,10 +72,16 @@ const Editor = (props: EditorProps) => {
     const v = new EditorView({ state, parent: parentEl });
     setView(v);
 
-    listen('menu-new', () => v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: '' } }));
+    /* ----------  menu events  ---------- */
+    listen('menu-new', () =>
+      v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: '' } })
+    );
 
     listen('menu-open', async () => {
-      const selected = await open({ multiple: false, filters: [{ name: 'Markdown', extensions: ['md'] }] });
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'Markdown', extensions: ['md'] }],
+      });
       if (!selected) return;
       const path = Array.isArray(selected) ? selected[0] : selected;
       const text = await readTextFile(path);
@@ -73,18 +93,52 @@ const Editor = (props: EditorProps) => {
       const text = v.state.doc.toString();
       let path = (window as any).__CURRENT_PATH__;
       if (!path) {
-        path = await save({ filters: [{ name: 'Markdown', extensions: ['md'] }] });
+        path = await save({
+          filters: [{ name: 'Markdown', extensions: ['md'] }],
+        });
         if (!path) return;
         (window as any).__CURRENT_PATH__ = path;
       }
       await writeFile(path, new TextEncoder().encode(text));
     });
 
-    /*  preview scroll  →  move editor  */
+    /* ----------  keyboard shortcuts  ---------- */
+    const undo = () => v.dispatch({ effects: EditorView.undo });
+    const redo = () => v.dispatch({ effects: EditorView.redo });
+    const selectAll = () =>
+      v.dispatch({ selection: { anchor: 0, head: v.state.doc.length } });
+
+    listen('undo', () => undo());
+    listen('redo', () => redo());
+    listen('select-all', () => selectAll());
+
+    listen('copy', async () => {
+      const sel = v.state.selection.main;
+      if (!sel.empty) {
+        const text = v.state.doc.sliceString(sel.from, sel.to);
+        await copyToClipboard(text);
+      }
+    });
+
+    listen('cut', async () => {
+      const sel = v.state.selection.main;
+      if (!sel.empty) {
+        const text = v.state.doc.sliceString(sel.from, sel.to);
+        await copyToClipboard(text);
+        v.dispatch({ changes: { from: sel.from, to: sel.to, insert: '' } });
+      }
+    });
+
+    listen('paste', async () => {
+      const text = await readFromClipboard();
+      v.dispatch(v.state.replaceSelection(text));
+    });
+
+    /* ----------  scroll sync from preview  ---------- */
     window.addEventListener('preview-scroll', (e: any) => {
       const scrollable = parentEl.querySelector('.cm-scroller') as HTMLElement;
       if (!scrollable) return;
-      lastExternalScroll = Date.now(); // mark “we are moving it”
+      lastExternalScroll = Date.now();
       const scrollHeight = scrollable.scrollHeight - scrollable.clientHeight;
       scrollable.scrollTop = e.detail * scrollHeight;
     });
