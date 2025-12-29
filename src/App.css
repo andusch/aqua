@@ -92,3 +92,8 @@ html, body, #root {
 .check-label input[data-checkbox] {
   cursor: pointer;
 }
+
+.cm-editor input[type="checkbox"] {
+  margin-right: 0.4rem;
+  transform: translateY(1px);
+}
