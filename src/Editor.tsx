@@ -40,12 +40,17 @@ const Editor = (props: EditorProps) => {
 
   onMount(async () => {
     await initDB();
-    const saved = (await loadDoc()) ?? '# Hello Aqua\nStart typing…';
+    const saved = (await loadDoc()) ?? "# Hello Aqua\nStart typing…";
 
     const state = EditorState.create({
       doc: saved,
       extensions: [
         keymap.of([...defaultKeymap, indentWithTab]),
+        keymap.of([
+          { key: "Enter", run: insertNewlineAndIndent },
+          ...defaultKeymap,
+          indentWithTab,
+        ]),
         markdown(),
         oneDark,
         syntaxHighlighting(defaultHighlightStyle),
@@ -63,13 +68,16 @@ const Editor = (props: EditorProps) => {
             if (Date.now() - lastExternalScroll < 100) return;
             const el = event.target as HTMLElement;
             const pct = el.scrollTop / (el.scrollHeight - el.clientHeight);
-            window.dispatchEvent(new CustomEvent('editor-scroll', { detail: pct }));
+            window.dispatchEvent(
+              new CustomEvent("editor-scroll", { detail: pct })
+            );
           }, 50),
         }),
       ],
     });
 
     const v = new EditorView({ state, parent: parentEl });
+    (window as any).__currentEditorView = v; // for widget
     setView(v);
 
     /* ----------  menu events  ---------- */
@@ -85,11 +93,13 @@ const Editor = (props: EditorProps) => {
       if (!selected) return;
       const path = Array.isArray(selected) ? selected[0] : selected;
       const text = await readTextFile(path);
-      v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: text } });
+      v.dispatch({
+        changes: { from: 0, to: v.state.doc.length, insert: text },
+      });
       (window as any).__CURRENT_PATH__ = path;
     });
 
-    listen('menu-save', async () => {
+    listen("menu-save", async () => {
       const text = v.state.doc.toString();
       let path = (window as any).__CURRENT_PATH__;
       if (!path) {
@@ -142,6 +152,7 @@ const Editor = (props: EditorProps) => {
       const scrollHeight = scrollable.scrollHeight - scrollable.clientHeight;
       scrollable.scrollTop = e.detail * scrollHeight;
     });
+
   });
 
   let timer: number;
