@@ -1,15 +1,23 @@
+// SolidJS imports
 import { onMount, createSignal } from 'solid-js';
+// CodeMirror imports
 import { EditorState } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
+import { undo, redo } from '@codemirror/commands';
 import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
-import { initDB, saveDoc, loadDoc } from './store';
+// Tauri imports
+import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { readTextFile, writeFile } from '@tauri-apps/plugin-fs';
 import { listen } from '@tauri-apps/api/event';
+// Local storage imports
+import { initDB, saveDoc, loadDoc } from './store';
+// Utility imports
 import { throttle } from 'lodash';
+
 
 interface EditorProps {
   onChange?: (text: string) => void;
@@ -78,6 +86,40 @@ const Editor = (props: EditorProps) => {
         (window as any).__CURRENT_PATH__ = path;
       }
       await writeFile(path, new TextEncoder().encode(text));
+    });
+
+        listen('undo', () => undo(view()));
+    listen('redo', () => redo(view()));
+    listen('select-all', () =>
+      view().dispatch({ selection: { anchor: 0, head: view().state.doc.length } })
+    );
+
+    listen('copy', async () => {
+      const sel = view().state.selection.main;
+      if (!sel.empty) {
+        const text = view().state.doc.sliceString(sel.from, sel.to);
+        await (window as any).__TAURI__
+          ? invoke('clipboard_write', { text })
+          : navigator.clipboard.writeText(text);
+      }
+    });
+
+    listen('cut', async () => {
+      const sel = view().state.selection.main;
+      if (!sel.empty) {
+        const text = view().state.doc.sliceString(sel.from, sel.to);
+        await ((window as any).__TAURI__
+          ? invoke('clipboard_write', { text })
+          : navigator.clipboard.writeText(text));
+        view().dispatch({ changes: { from: sel.from, to: sel.to, insert: '' } });
+      }
+    });
+
+    listen('paste', async () => {
+      const text = (window as any).__TAURI__
+        ? await invoke('clipboard_read')
+        : await navigator.clipboard.readText();
+      view().dispatch(view().state.replaceSelection(text));
     });
 
     /*  preview scroll  →  move editor  */
