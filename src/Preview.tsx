@@ -5,6 +5,7 @@ import DOMPurify from 'dompurify';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css';
 import { throttle } from 'lodash';
+import { arrowExtension } from './ArrowExtension';
 
 const marked = new Marked(
   markedHighlight({
@@ -13,9 +14,10 @@ const marked = new Marked(
     highlight(code, lang) {
       const language = hljs.getLanguage(lang) ? lang : 'plaintext';
       return hljs.highlight(code, { language }).value;
-    }
-  })
-);
+    },
+  }),
+).use({ extensions: [arrowExtension] });
+
 marked.setOptions({ breaks: true, gfm: true });
 
 interface PreviewProps {
