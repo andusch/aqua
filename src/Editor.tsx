@@ -18,16 +18,17 @@ import { initDB, saveDoc, loadDoc } from './store';
 // Utility imports
 import { throttle } from 'lodash';
 
-
+// Component Props
 interface EditorProps {
   onChange?: (text: string) => void;
 }
+
 
 const Editor = (props: EditorProps) => {
   let parentEl: HTMLDivElement;
   const [view, setView] = createSignal<EditorView>();
 
-  /* ----------  scroll-sync lock (timestamp based)  ---------- */
+  // Scroll synchronization
   let lastExternalScroll = 0; // epoch ms
 
   onMount(async () => {
@@ -66,6 +67,7 @@ const Editor = (props: EditorProps) => {
     const v = new EditorView({ state, parent: parentEl });
     setView(v);
 
+    // Menu event listeners
     listen('menu-new', () => v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: '' } }));
 
     listen('menu-open', async () => {
@@ -88,12 +90,15 @@ const Editor = (props: EditorProps) => {
       await writeFile(path, new TextEncoder().encode(text));
     });
 
-        listen('undo', () => undo(view()));
+
+    // Edit event listeners
+    listen('undo', () => undo(view()));
     listen('redo', () => redo(view()));
     listen('select-all', () =>
       view().dispatch({ selection: { anchor: 0, head: view().state.doc.length } })
     );
 
+    // Clipboard event listeners
     listen('copy', async () => {
       const sel = view().state.selection.main;
       if (!sel.empty) {
@@ -132,6 +137,7 @@ const Editor = (props: EditorProps) => {
     });
   });
 
+  // Debounce utility for scroll and change events
   let timer: number;
   function debounce(fn: () => void) {
     clearTimeout(timer);

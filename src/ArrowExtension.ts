@@ -1,5 +1,6 @@
 import type { marked } from 'marked';
 
+// An extension for marked that converts arrow sequences to their Unicode equivalents
 export const arrowExtension: marked.TokenizerAndRendererExtension = {
   name: 'arrow',
   level: 'inline',

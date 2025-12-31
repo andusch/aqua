@@ -1,7 +1,9 @@
+// Tauri imports
 use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
 use tauri_plugin_dialog::DialogExt;
 use tauri::{AppHandle, Emitter, generate_context, generate_handler, Builder, Manager};
 
+// Open File dialog and read file contents
 #[tauri::command]
 async fn open_file(app: AppHandle) -> Result<String, String> {
     let path = tokio::task::spawn_blocking(move || {
@@ -22,17 +24,19 @@ async fn open_file(app: AppHandle) -> Result<String, String> {
     }
 }
 
+// Save file contents to specified path
 #[tauri::command]
 async fn save_file(_app: AppHandle, path: String, content: String) -> Result<(), String> {
     tokio::fs::write(path, content).await.map_err(|e| e.to_string())
 }
 
+// Main entry point
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            /* ----------  File menu  ---------- */
+            // File Menu (Work in Progress)
             let file_menu = Submenu::with_items(
                 app,
                 "File",
@@ -54,7 +58,7 @@ pub fn run() {
                 ],
             )?;
 
-            /* ----------  Edit menu  (gives native undo/cut/copy/paste/select-all)  ---------- */
+            // Edit menu (gives native undo/cut/copy/paste/select-all)
             let edit_menu = Submenu::with_items(
                 app,
                 "Edit",
@@ -95,14 +99,14 @@ pub fn run() {
         })
         .on_menu_event(|app, event| {
             if let Some(win) = app.get_webview_window("main") {
-                /* file actions */
+                // file actions (work in progress)
                 let _ = match event.id().as_ref() {
                     "new"  => win.emit("menu-new",  ()),
                     "open" => win.emit("menu-open", ()),
                     "save" => win.emit("menu-save", ()),
                     _ => Ok(()),
                 };
-                /* edit actions – same names the front-end already listens for */
+                // edit actions
                 let _ = match event.id().as_ref() {
                     "undo"  => win.emit("undo",  ()),
                     "redo"  => win.emit("redo",  ()),

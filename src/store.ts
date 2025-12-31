@@ -1,5 +1,3 @@
-// src/store.ts
-
 import { openDB, IDBPDatabase } from 'idb';
 
 const DB_NAME = 'aqua';

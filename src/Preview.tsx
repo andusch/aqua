@@ -1,12 +1,18 @@
+// Component imports
 import { createEffect, onMount } from 'solid-js';
+// Markdown and syntax highlighting imports
 import { Marked } from 'marked';
 import { markedHighlight } from 'marked-highlight';
-import DOMPurify from 'dompurify';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css';
+// Sanitization imports
+import DOMPurify from 'dompurify';
+// Utility imports
 import { throttle } from 'lodash';
+// Arrow extension import
 import { arrowExtension } from './ArrowExtension';
 
+// Configure marked with highlight.js and the arrow extension
 const marked = new Marked(
   markedHighlight({
     emptyLangClass: 'hljs',
@@ -20,15 +26,17 @@ const marked = new Marked(
 
 marked.setOptions({ breaks: true, gfm: true });
 
+// Component Props
 interface PreviewProps {
   markdown: string;
 }
 
+// Preview Component
 const Preview = (props: PreviewProps) => {
   let containerRef: HTMLDivElement | undefined;
   let lastExternalScroll = 0; // epoch ms
 
-  /*  human scroll  →  send percentage  (throttled)  */
+  // Preview scroll → move editor
   const handlePreviewScroll = throttle(() => {
     if (Date.now() - lastExternalScroll < 100) return;
     if (!containerRef) return;
@@ -37,7 +45,7 @@ const Preview = (props: PreviewProps) => {
     window.dispatchEvent(new CustomEvent('preview-scroll', { detail: pct }));
   }, 50);
 
-  /*  editor scroll  →  move preview  */
+  // Editor scroll → move preview
   onMount(() => {
     const handleEditorScroll = (e: any) => {
       if (!containerRef) return;
@@ -49,6 +57,7 @@ const Preview = (props: PreviewProps) => {
     return () => window.removeEventListener('editor-scroll', handleEditorScroll);
   });
 
+  // Highlight code blocks on markdown change
   createEffect(() => {
     if (containerRef) {
       containerRef.querySelectorAll('pre code').forEach((block: Element) => {
