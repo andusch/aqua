@@ -31,6 +31,27 @@ async fn save_file(_app: AppHandle, path: String, content: String) -> Result<(),
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+async fn save_file_dialog(app: AppHandle, text: String) -> Result<String, String> {
+    let path = tokio::task::spawn_blocking(move || {
+        app.dialog()
+            .file()
+            .add_filter("Markdown", &["md"])
+            .blocking_save_file()
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    match path {
+        Some(p) => {
+            let path_str = p.to_string();
+            tokio::fs::write(&path_str, text).await.map_err(|e| e.to_string())?;
+            Ok(path_str)
+        }
+        None => Err("cancelled".into()),
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     Builder::default()
@@ -110,7 +131,7 @@ pub fn run() {
                 };
             }
         })
-        .invoke_handler(generate_handler![open_file, save_file])
+        .invoke_handler(generate_handler![open_file, save_file, save_file_dialog])
         .run(generate_context!())
         .expect("error while running tauri application");
 }
