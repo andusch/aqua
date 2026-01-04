@@ -11,6 +11,7 @@ import { readTextFile, writeFile } from '@tauri-apps/plugin-fs';
 import { listen } from '@tauri-apps/api/event';
 import { initDB, saveDoc, loadDoc } from './store';
 import { throttle } from 'lodash';
+import { fileState } from './store/fileState';
 
 interface EditorProps {
   onChange?: (text: string) => void;
@@ -39,6 +40,7 @@ const Editor = (props: EditorProps) => {
             debounce(() => {
               saveDoc(txt);
               props.onChange?.(txt);
+              fileState.setModified(true);
             });
           }
         }),
