@@ -1,15 +1,22 @@
 import { onMount, createSignal } from 'solid-js';
-import { EditorState } from '@codemirror/state';
-import { EditorView, keymap } from '@codemirror/view';
+
+// CodeMirror imports
+import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
 import { defaultKeymap, indentWithTab, undo, redo } from '@codemirror/commands';
+import { EditorView, keymap } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
-import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
+import { EditorState } from '@codemirror/state';
+
+// Tauri imports
 import { invoke } from '@tauri-apps/api/core';
-import { open, save } from '@tauri-apps/plugin-dialog';
-import { readTextFile, writeFile } from '@tauri-apps/plugin-fs';
 import { listen } from '@tauri-apps/api/event';
+
+// Local imports for storage and state management
 import { initDB, saveDoc, loadDoc } from './store';
+import { fileState } from './store/fileState';
+
+// Import for throttle function for scroll syncing
 import { throttle } from 'lodash';
 
 interface EditorProps {
@@ -26,6 +33,7 @@ const Editor = (props: EditorProps) => {
     await initDB();
     const saved = (await loadDoc()) ?? '# Hello Aqua\nStart typing…';
 
+    // Initialize CodeMirror editor state
     const state = EditorState.create({
       doc: saved,
       extensions: [
@@ -39,6 +47,7 @@ const Editor = (props: EditorProps) => {
             debounce(() => {
               saveDoc(txt);
               props.onChange?.(txt);
+              fileState.setModified(true);
             });
           }
         }),
@@ -56,28 +65,41 @@ const Editor = (props: EditorProps) => {
     const v = new EditorView({ state, parent: parentEl });
     setView(v);
 
-    listen('menu-new', () => v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: '' } }));
-
-    listen('menu-open', async () => {
-      const selected = await open({ multiple: false, filters: [{ name: 'Markdown', extensions: ['md'] }] });
-      if (!selected) return;
-      const path = Array.isArray(selected) ? selected[0] : selected;
-      const text = await readTextFile(path);
-      v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: text } });
-      (window as any).__CURRENT_PATH__ = path;
+    // New file menu listener
+    listen('menu-new', () => {
+      v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: '' } });
+      fileState.reset();
+      props.onChange?.('');
     });
 
+    // Open file menu listener
+    listen('menu-open', async () => {
+      const text = await invoke<string>('open_file').catch(() => null);
+      if (text === null) return;          // cancelled
+      v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: text } });
+      fileState.setModified(false);
+      props.onChange?.(text);
+    });
+
+    // Save file menu listener
     listen('menu-save', async () => {
       const text = v.state.doc.toString();
-      let path = (window as any).__CURRENT_PATH__;
-      if (!path) {
-        path = await save({ filters: [{ name: 'Markdown', extensions: ['md'] }] });
-        if (!path) return;
-        (window as any).__CURRENT_PATH__ = path;
-      }
-      await writeFile(path, new TextEncoder().encode(text));
+      const path = await invoke<string | null>('save_file_dialog', { text }).catch(() => null);
+      if (!path) return;
+      fileState.setPath(path);
+      fileState.setModified(false);
     });
 
+    // Auto-save every 30 seconds
+    setInterval(() => {
+      if (!fileState.modified() || !fileState.path()) return;
+      const text = v.state.doc.toString();
+      invoke('save_file', { path: fileState.path(), content: text })
+      .then(() => fileState.setModified(false))
+      .catch(() => {/* silent fail */});
+    }, 30_000);
+
+    // Undo, Redo, Select All, Copy, Cut, Paste listeners
     listen('undo', () => undo(v));
     listen('redo', () => redo(v));
     listen('select-all', () => v.dispatch({ selection: { anchor: 0, head: v.state.doc.length } }));
@@ -106,6 +128,7 @@ const Editor = (props: EditorProps) => {
       v.dispatch(v.state.replaceSelection(text));
     });
 
+    // Preview scroll syncing listener
     window.addEventListener('preview-scroll', (e: any) => {
       const scroller = parentEl.querySelector('.cm-scroller') as HTMLElement;
       if (!scroller) return;
@@ -115,6 +138,7 @@ const Editor = (props: EditorProps) => {
     });
   });
 
+  // Debounce function for onChange
   let timer: number;
   function debounce(fn: () => void) {
     clearTimeout(timer);

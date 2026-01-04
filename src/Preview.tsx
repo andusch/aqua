@@ -1,12 +1,21 @@
 import { createEffect, onMount } from 'solid-js';
+
+// Marked and Highlight.js imports
 import { Marked } from 'marked';
-import { markedHighlight } from 'marked-highlight';
-import DOMPurify from 'dompurify';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css';
+import { markedHighlight } from 'marked-highlight';
+
+// DOMPurify import for sanitizing HTML
+import DOMPurify from 'dompurify';
+
+// Throttle function import
 import { throttle } from 'lodash';
+
+// Arrow extension for marked
 import { arrowExtension } from './ArrowExtension';
 
+// Configure marked with highlight.js
 const marked = new Marked(
   markedHighlight({
     emptyLangClass: 'hljs',
