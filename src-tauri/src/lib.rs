@@ -2,6 +2,7 @@ use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
 use tauri::{generate_context, generate_handler, AppHandle, Builder, Emitter, Manager};
 use tauri_plugin_dialog::DialogExt;
 
+// Opens a file dialog to select a markdown file and reads its content
 #[tauri::command]
 async fn open_file(app: AppHandle) -> Result<String, String> {
     let path = tokio::task::spawn_blocking(move || {
@@ -24,6 +25,7 @@ async fn open_file(app: AppHandle) -> Result<String, String> {
     }
 }
 
+// Saves content to a specified file path
 #[tauri::command]
 async fn save_file(_app: AppHandle, path: String, content: String) -> Result<(), String> {
     tokio::fs::write(path, content)
@@ -31,6 +33,7 @@ async fn save_file(_app: AppHandle, path: String, content: String) -> Result<(),
         .map_err(|e| e.to_string())
 }
 
+// Opens a save file dialog and saves the provided text to the selected file
 #[tauri::command]
 async fn save_file_dialog(app: AppHandle, text: String) -> Result<String, String> {
     let path = tokio::task::spawn_blocking(move || {
@@ -52,6 +55,7 @@ async fn save_file_dialog(app: AppHandle, text: String) -> Result<String, String
     }
 }
 
+// Sets up the Tauri application with menus and command handlers
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     Builder::default()
