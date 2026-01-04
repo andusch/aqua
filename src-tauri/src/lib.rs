@@ -2,6 +2,7 @@ use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
 use tauri::{generate_context, generate_handler, AppHandle, Builder, Emitter, Manager};
 use tauri_plugin_dialog::DialogExt;
 
+// Opens a file dialog to select a markdown file and reads its content
 #[tauri::command]
 async fn open_file(app: AppHandle) -> Result<String, String> {
     let path = tokio::task::spawn_blocking(move || {
@@ -24,6 +25,7 @@ async fn open_file(app: AppHandle) -> Result<String, String> {
     }
 }
 
+// Saves content to a specified file path
 #[tauri::command]
 async fn save_file(_app: AppHandle, path: String, content: String) -> Result<(), String> {
     tokio::fs::write(path, content)
@@ -31,6 +33,29 @@ async fn save_file(_app: AppHandle, path: String, content: String) -> Result<(),
         .map_err(|e| e.to_string())
 }
 
+// Opens a save file dialog and saves the provided text to the selected file
+#[tauri::command]
+async fn save_file_dialog(app: AppHandle, text: String) -> Result<String, String> {
+    let path = tokio::task::spawn_blocking(move || {
+        app.dialog()
+            .file()
+            .add_filter("Markdown", &["md"])
+            .blocking_save_file()
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    match path {
+        Some(p) => {
+            let path_str = p.to_string();
+            tokio::fs::write(&path_str, text).await.map_err(|e| e.to_string())?;
+            Ok(path_str)
+        }
+        None => Err("cancelled".into()),
+    }
+}
+
+// Sets up the Tauri application with menus and command handlers
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     Builder::default()
@@ -110,7 +135,7 @@ pub fn run() {
                 };
             }
         })
-        .invoke_handler(generate_handler![open_file, save_file])
+        .invoke_handler(generate_handler![open_file, save_file, save_file_dialog])
         .run(generate_context!())
         .expect("error while running tauri application");
 }

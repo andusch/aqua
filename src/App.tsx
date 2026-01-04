@@ -1,12 +1,21 @@
-import { Component, createSignal } from "solid-js";
+import { Component, createSignal, createEffect } from "solid-js";
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import Resizable from '@corvu/resizable';
 import Editor from "./Editor";
 import Preview from "./Preview";
+import { fileState } from './store/fileState';
 import "./App.css";
 
 const App: Component = () => {
   const [md, setMd] = createSignal("# Hello Aqua\nStart typing…");
 
+  // Update window title on file path or modified change
+  createEffect(() => {
+    const name = fileState.path()?.split('/').pop() || 'Untitled.md';
+    const flag = fileState.modified() ? ' ●' : '';
+    getCurrentWindow().setTitle(`${name}${flag} - Aqua`);
+  })
+  
   return (
     <div class="app">
       <Resizable class="resizable-container">
