@@ -6,7 +6,6 @@ import { markdown } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
 import { invoke } from '@tauri-apps/api/core';
-import { open, save } from '@tauri-apps/plugin-dialog';
 import { readTextFile, writeFile } from '@tauri-apps/plugin-fs';
 import { listen } from '@tauri-apps/api/event';
 import { initDB, saveDoc, loadDoc } from './store';
@@ -65,27 +64,17 @@ const Editor = (props: EditorProps) => {
   });
 
     listen('menu-open', async () => {
-      const selected = await open({ multiple: false, filters: [{ name: 'Markdown', extensions: ['md'] }] });
-      if (!selected) return;
-      const path = Array.isArray(selected) ? selected[0] : selected;
-      const text = await readTextFile(path);
+      const text = await invoke<string>('open_file').catch(() => null);
+      if (text === null) return;          // cancelled
       v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: text } });
-      (window as any).__CURRENT_PATH__ = path;
-      fileState.setPath(path);
       fileState.setModified(false);
       props.onChange?.(text);
     });
 
     listen('menu-save', async () => {
       const text = v.state.doc.toString();
-      let path = (window as any).__CURRENT_PATH__;
-      if (!path) {
-        path = await save({ filters: [{ name: 'Markdown', extensions: ['md'] }] });
-        if (!path) return;
-        (window as any).__CURRENT_PATH__ = path;
-      }
-      await writeFile(path, new TextEncoder().encode(text));
-      (window as any).__CURRENT_PATH__ = path;
+      const path = await invoke<string | null>('save_file_dialog', { text }).catch(() => null);
+      if (!path) return;
       fileState.setPath(path);
       fileState.setModified(false);
     });
