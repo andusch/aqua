@@ -4,8 +4,18 @@ import Editor from "./Editor";
 import Preview from "./Preview";
 import "./App.css";
 
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { fileState } from './store/fileState';
+import { createEffect } from 'solid-js';
+
 const App: Component = () => {
   const [md, setMd] = createSignal("# Hello Aqua\nStart typing…");
+
+  createEffect(() => {
+    const name = fileState.path()?.split('/').pop() || 'Untitled';
+    const flag = fileState.modified() ? ' ●' : '';
+    getCurrentWindow().setTitle(`${name}${flag} - Aqua`);
+  })
 
   return (
     <div class="app">
