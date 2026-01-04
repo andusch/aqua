@@ -58,7 +58,11 @@ const Editor = (props: EditorProps) => {
     const v = new EditorView({ state, parent: parentEl });
     setView(v);
 
-    listen('menu-new', () => v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: '' } }));
+    listen('menu-new', () => {
+      v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: '' } });
+      fileState.reset();
+      props.onChange?.('');
+  });
 
     listen('menu-open', async () => {
       const selected = await open({ multiple: false, filters: [{ name: 'Markdown', extensions: ['md'] }] });
@@ -67,6 +71,9 @@ const Editor = (props: EditorProps) => {
       const text = await readTextFile(path);
       v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: text } });
       (window as any).__CURRENT_PATH__ = path;
+      fileState.setPath(path);
+      fileState.setModified(false);
+      props.onChange?.(text);
     });
 
     listen('menu-save', async () => {
@@ -78,7 +85,19 @@ const Editor = (props: EditorProps) => {
         (window as any).__CURRENT_PATH__ = path;
       }
       await writeFile(path, new TextEncoder().encode(text));
+      (window as any).__CURRENT_PATH__ = path;
+      fileState.setPath(path);
+      fileState.setModified(false);
     });
+
+    // Auto-save every 30 seconds
+    setInterval(() => {
+      if (!fileState.modified() || !fileState.path()) return;
+      const text = v.state.doc.toString();
+      writeFile(fileState.path()!, new TextEncoder().encode(text))
+      .then(() => fileState.setModified(false))
+      .catch(() => {/* ignore */});
+    }, 30_000);
 
     listen('undo', () => undo(v));
     listen('redo', () => redo(v));
