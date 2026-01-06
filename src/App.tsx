@@ -1,12 +1,22 @@
+// solid-js
 import { Component, createSignal, createEffect } from "solid-js";
-import { getCurrentWindow } from '@tauri-apps/api/window';
+// Resizable import
 import Resizable from '@corvu/resizable';
-import Editor from "./Editor";
-import Preview from "./Preview";
+
+// Tauri import
+import { getCurrentWindow } from '@tauri-apps/api/window';
+
+// components
+import Editor from "./components/Editor.tsx";
+import Preview from "./components/Preview.tsx";
+
+// file state store
 import { fileState } from './store/fileState';
+// styles
 import "./App.css";
 
 const App: Component = () => {
+  
   const [md, setMd] = createSignal("# Hello Aqua\nStart typing…");
 
   // Update window title on file path or modified change

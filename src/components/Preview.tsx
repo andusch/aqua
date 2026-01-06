@@ -13,7 +13,7 @@ import DOMPurify from 'dompurify';
 import { throttle } from 'lodash';
 
 // Arrow extension for marked
-import { arrowExtension } from './ArrowExtension';
+import { arrowExtension } from '../extensions/ArrowExtension';
 
 // Configure marked with highlight.js
 const marked = new Marked(
