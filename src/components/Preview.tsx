@@ -14,6 +14,8 @@ import { throttle } from 'lodash';
 
 // Arrow extension for marked
 import { arrowExtension } from '../extensions/ArrowExtension';
+// Checkbox extension for marked
+import { checkboxExtension } from '../extensions/CheckboxExtension';
 
 // Configure marked with highlight.js
 const marked = new Marked(
@@ -25,7 +27,7 @@ const marked = new Marked(
       return hljs.highlight(code, { language }).value;
     },
   }),
-).use({ extensions: [arrowExtension] });
+).use({ extensions: [arrowExtension, checkboxExtension] });
 
 marked.setOptions({ breaks: true, gfm: true });
 

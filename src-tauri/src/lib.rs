@@ -1,6 +1,7 @@
 use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
 use tauri::{generate_context, generate_handler, AppHandle, Builder, Emitter, Manager};
 use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_clipboard_manager::ClipboardExt;
 
 #[derive(serde::Serialize)]
 struct OpenedFile {
@@ -67,11 +68,28 @@ async fn save_file_dialog(app: AppHandle, text: String) -> Result<String, String
     }
 }
 
+// Writes text to clipboard
+#[tauri::command]
+async fn clipboard_write(app: AppHandle, text: String) -> Result<(), String> {
+    app.clipboard()
+        .write_text(text)
+        .map_err(|e| e.to_string())
+}
+
+// Reads text from clipboard
+#[tauri::command]
+async fn clipboard_read(app: AppHandle) -> Result<String, String> {
+    app.clipboard()
+        .read_text()
+        .map_err(|e| e.to_string())
+}
+
 // Sets up the Tauri application with menus and command handlers
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
             let file_menu = Submenu::with_items(
                 app,
@@ -147,7 +165,7 @@ pub fn run() {
                 };
             }
         })
-        .invoke_handler(generate_handler![open_file, save_file, save_file_dialog])
+        .invoke_handler(generate_handler![open_file, save_file, save_file_dialog, clipboard_write, clipboard_read])
         .run(generate_context!())
         .expect("error while running tauri application");
 }

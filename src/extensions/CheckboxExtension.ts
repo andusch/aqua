@@ -1,10 +1,10 @@
-import { marked } from 'marked';
+import type { marked } from 'marked';
 
 const checkboxRegex = /^\[([ xX])\] +/;
 
-const checkboxExtension = {
+export const checkboxExtension: marked.TokenizerAndRendererExtension = {
   name: 'checkbox',
-  level: 'inline' as const,
+  level: 'inline',
   start(src: string) {
     const match = src.match(checkboxRegex);
     return match ? 0 : -1;
@@ -26,5 +26,3 @@ const checkboxExtension = {
     return `<label class="check-label"><input type="checkbox" ${checked} data-checkbox> ${token.text}</label>`;
   },
 };
-
-marked.use({ extensions: [checkboxExtension] });
