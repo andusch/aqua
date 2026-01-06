@@ -23,7 +23,6 @@ const App: Component = () => {
   createEffect(() => {
     const name = fileState.path()?.split(/[/\\]/).pop() || 'Untitled.md';
     const flag = fileState.modified() ? ' ●' : '';
-    console.log('[TITLE]', name + flag);
     try { getCurrentWindow().setTitle(`${name}${flag} - Aqua`); } catch {}
   });
   
