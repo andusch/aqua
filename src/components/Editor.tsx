@@ -69,6 +69,7 @@ const Editor = (props: EditorProps) => {
     listen('menu-new', () => {
       v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: '' } });
       fileState.reset();
+      (window as any).__CURRENT_PATH__ = null;
       props.onChange?.('');
     });
 

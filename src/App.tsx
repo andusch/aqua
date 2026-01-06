@@ -21,10 +21,11 @@ const App: Component = () => {
 
   // Update window title on file path or modified change
   createEffect(() => {
-    const name = fileState.path()?.split('/').pop() || 'Untitled.md';
+    const name = fileState.path()?.split(/[/\\]/).pop() || 'Untitled.md';
     const flag = fileState.modified() ? ' ●' : '';
-    getCurrentWindow().setTitle(`${name}${flag} - Aqua`);
-  })
+    console.log('[TITLE]', name + flag);
+    try { getCurrentWindow().setTitle(`${name}${flag} - Aqua`); } catch {}
+  });
   
   return (
     <div class="app">
