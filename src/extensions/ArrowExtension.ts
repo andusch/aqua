@@ -12,7 +12,8 @@ export const arrowExtension: marked.TokenizerAndRendererExtension = {
     let m: RegExpExecArray | null;
     while ((m = rule.exec(src))) {
       if (m.index > last) out += src.slice(last, m.index);
-      out += { '->': '→', '<-': '←', '<->': '↔' }[m[0]];
+      const arrowMap: Record<string, string> = { '->': '→', '<-': '←', '<->': '↔' };
+      out += arrowMap[m[0]] || m[0];
       last = rule.lastIndex;
     }
     if (!out) return undefined;

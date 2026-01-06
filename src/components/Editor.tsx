@@ -65,15 +65,19 @@ const Editor = (props: EditorProps) => {
     const v = new EditorView({ state, parent: parentEl });
     setView(v);
 
+    // Store unlisten functions for cleanup
+    const unlisteners: Array<() => void> = [];
+
     // New file menu listener
-    listen('menu-new', () => {
+    const unlistenNew = await listen('menu-new', () => {
       v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: '' } });
       fileState.reset();
       props.onChange?.('');
     });
+    unlisteners.push(unlistenNew);
 
     // Open file menu listener
-    listen('menu-open', async () => {
+    const unlistenOpen = await listen('menu-open', async () => {
 
       const file = await invoke<{path: string, content: string}>('open_file').catch(() => null);
       if (!file) return;
@@ -86,9 +90,10 @@ const Editor = (props: EditorProps) => {
       props.onChange?.(file.content);
 
     });
+    unlisteners.push(unlistenOpen);
 
     // Save file menu listener
-    listen('menu-save', async () => {
+    const unlistenSave = await listen('menu-save', async () => {
 
       const text = v.state.doc.toString();
       const path = fileState.path();
@@ -97,7 +102,7 @@ const Editor = (props: EditorProps) => {
 
       // overwrite existing file
       if (path) {
-        await invoke ('save_file', { path, content: text })
+        await invoke('save_file', { path, content: text });
         fileState.setModified(false);
       }
       // save as new file
@@ -111,57 +116,87 @@ const Editor = (props: EditorProps) => {
 
       
     });
+    unlisteners.push(unlistenSave);
 
     // Auto-save every 30 seconds
-    setInterval(() => {
+    const autoSaveInterval = setInterval(() => {
       if (!fileState.modified() || !fileState.path()) return;
       const text = v.state.doc.toString();
       invoke('save_file', { path: fileState.path(), content: text })
-      .then(() => fileState.setModified(false))
-      .catch(() => {/* silent fail */});
+        .then(() => fileState.setModified(false))
+        .catch(() => {/* silent fail */});
     }, 30_000);
 
     // Undo, Redo, Select All, Copy, Cut, Paste listeners
-    listen('undo', () => undo(v));
-    listen('redo', () => redo(v));
-    listen('select-all', () => v.dispatch({ selection: { anchor: 0, head: v.state.doc.length } }));
+    const unlistenUndo = await listen('undo', () => undo(v));
+    unlisteners.push(unlistenUndo);
+    
+    const unlistenRedo = await listen('redo', () => redo(v));
+    unlisteners.push(unlistenRedo);
+    
+    const unlistenSelectAll = await listen('select-all', () => v.dispatch({ selection: { anchor: 0, head: v.state.doc.length } }));
+    unlisteners.push(unlistenSelectAll);
 
-    listen('copy', async () => {
+    const unlistenCopy = await listen('copy', async () => {
       const sel = v.state.selection.main;
       if (!sel.empty) {
-        const text = v.state.doc.sliceString(sel.from, sel.to);
-        await ((window as any).__TAURI__ ? invoke('clipboard_write', { text }) : navigator.clipboard.writeText(text));
+        try {
+          const text = v.state.doc.sliceString(sel.from, sel.to);
+          await ((window as any).__TAURI__ ? invoke('clipboard_write', { text }) : navigator.clipboard.writeText(text));
+        } catch (err) {
+          console.error('Failed to copy to clipboard:', err);
+        }
       }
     });
+    unlisteners.push(unlistenCopy);
 
-    listen('cut', async () => {
+    const unlistenCut = await listen('cut', async () => {
       const sel = v.state.selection.main;
       if (!sel.empty) {
-        const text = v.state.doc.sliceString(sel.from, sel.to);
-        await ((window as any).__TAURI__ ? invoke('clipboard_write', { text }) : navigator.clipboard.writeText(text));
-        v.dispatch({ changes: { from: sel.from, to: sel.to, insert: '' } });
+        try {
+          const text = v.state.doc.sliceString(sel.from, sel.to);
+          await ((window as any).__TAURI__ ? invoke('clipboard_write', { text }) : navigator.clipboard.writeText(text));
+          v.dispatch({ changes: { from: sel.from, to: sel.to, insert: '' } });
+        } catch (err) {
+          console.error('Failed to cut to clipboard:', err);
+        }
       }
     });
+    unlisteners.push(unlistenCut);
 
-    listen('paste', async () => {
-      const text = (window as any).__TAURI__
-        ? await invoke('clipboard_read')
-        : await navigator.clipboard.readText();
-      v.dispatch(v.state.replaceSelection(text));
+    const unlistenPaste = await listen('paste', async () => {
+      try {
+        const text = (window as any).__TAURI__
+          ? await invoke<string>('clipboard_read')
+          : await navigator.clipboard.readText();
+        v.dispatch(v.state.replaceSelection(text));
+      } catch (err) {
+        console.error('Failed to paste from clipboard:', err);
+      }
     });
+    unlisteners.push(unlistenPaste);
 
     // Preview scroll syncing listener
-    window.addEventListener('preview-scroll', (e: any) => {
+    const handlePreviewScroll = (e: any) => {
       const scroller = parentEl.querySelector('.cm-scroller') as HTMLElement;
       if (!scroller) return;
       lastExternalScroll = Date.now();
       const sh = scroller.scrollHeight - scroller.clientHeight;
       scroller.scrollTop = e.detail * sh;
-    });
+    };
+    window.addEventListener('preview-scroll', handlePreviewScroll);
+
+    // Cleanup function
+    return () => {
+      clearInterval(autoSaveInterval);
+      window.removeEventListener('preview-scroll', handlePreviewScroll);
+      unlisteners.forEach(unlisten => unlisten());
+      v.destroy();
+    };
   });
 
   // Debounce function for onChange
-  let timer: number;
+  let timer: ReturnType<typeof setTimeout>;
   function debounce(fn: () => void) {
     clearTimeout(timer);
     timer = setTimeout(fn, 400);
