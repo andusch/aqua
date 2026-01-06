@@ -69,7 +69,6 @@ const Editor = (props: EditorProps) => {
     listen('menu-new', () => {
       v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: '' } });
       fileState.reset();
-      (window as any).__CURRENT_PATH__ = null;
       props.onChange?.('');
     });
 
@@ -94,6 +93,8 @@ const Editor = (props: EditorProps) => {
       const text = v.state.doc.toString();
       const path = fileState.path();
 
+      console.log('[SAVE] path =', path);
+
       // overwrite existing file
       if (path) {
         await invoke ('save_file', { path, content: text })
@@ -101,7 +102,8 @@ const Editor = (props: EditorProps) => {
       }
       // save as new file
       else {
-        const newPath = await invoke<string | null>('save_file_dialog', { content: text }).catch(() => null);
+        const newPath = await invoke<string | null>('save_file_dialog', { text });
+        console.log('[SAVE AS] newPath =', newPath);
         if (!newPath) return;
         fileState.setPath(newPath);
         fileState.setModified(false);

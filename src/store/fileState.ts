@@ -8,7 +8,7 @@ export const fileState = {
   modified,
   setPath,
   setModified,
-  reset: () => {
+  reset () {
     setPath(null);
     setModified(false);
   },
