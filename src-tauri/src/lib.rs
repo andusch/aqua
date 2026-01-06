@@ -2,27 +2,39 @@ use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
 use tauri::{generate_context, generate_handler, AppHandle, Builder, Emitter, Manager};
 use tauri_plugin_dialog::DialogExt;
 
+#[derive(serde::Serialize)]
+struct OpenedFile {
+    path: String,
+    content: String,
+}
+
 // Opens a file dialog to select a markdown file and reads its content
 #[tauri::command]
-async fn open_file(app: AppHandle) -> Result<String, String> {
+async fn open_file(app: AppHandle) -> Result<OpenedFile, String> {
+
     let path = tokio::task::spawn_blocking(move || {
         app.dialog()
             .file()
             .add_filter("Markdown", &["md"])
-            .blocking_pick_file()
+            .blocking_pick_file()  
     })
     .await
     .map_err(|e| e.to_string())?;
-
+    
     match path {
         Some(p) => {
             let path_str = p.to_string();
-            tokio::fs::read_to_string(path_str)
+            let content_str = tokio::fs::read_to_string(&path_str)
                 .await
-                .map_err(|e| e.to_string())
+                .map_err(|e| e.to_string())?;
+            Ok(OpenedFile {
+                path: path_str,
+                content: content_str,
+            })
         }
         None => Err("cancelled".into()),
     }
+    
 }
 
 // Saves content to a specified file path

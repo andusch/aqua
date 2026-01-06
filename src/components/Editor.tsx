@@ -13,8 +13,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
 // Local imports for storage and state management
-import { initDB, saveDoc, loadDoc } from './store';
-import { fileState } from './store/fileState';
+import { fileState } from '../store/fileState.ts';
+import { initDB, saveDoc, loadDoc } from '../store/store.ts';
 
 // Import for throttle function for scroll syncing
 import { throttle } from 'lodash';
@@ -74,20 +74,42 @@ const Editor = (props: EditorProps) => {
 
     // Open file menu listener
     listen('menu-open', async () => {
-      const text = await invoke<string>('open_file').catch(() => null);
-      if (text === null) return;          // cancelled
-      v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: text } });
+
+      const file = await invoke<{path: string, content: string}>('open_file').catch(() => null);
+      if (!file) return;
+
+      v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: file.content}});
+
+      fileState.setPath(file.path);
       fileState.setModified(false);
-      props.onChange?.(text);
+
+      props.onChange?.(file.content);
+
     });
 
     // Save file menu listener
     listen('menu-save', async () => {
+
       const text = v.state.doc.toString();
-      const path = await invoke<string | null>('save_file_dialog', { text }).catch(() => null);
-      if (!path) return;
-      fileState.setPath(path);
-      fileState.setModified(false);
+      const path = fileState.path();
+
+      console.log('[SAVE] path =', path);
+
+      // overwrite existing file
+      if (path) {
+        await invoke ('save_file', { path, content: text })
+        fileState.setModified(false);
+      }
+      // save as new file
+      else {
+        const newPath = await invoke<string | null>('save_file_dialog', { text });
+        console.log('[SAVE AS] newPath =', newPath);
+        if (!newPath) return;
+        fileState.setPath(newPath);
+        fileState.setModified(false);
+      }
+
+      
     });
 
     // Auto-save every 30 seconds
