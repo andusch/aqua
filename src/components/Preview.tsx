@@ -17,6 +17,12 @@ import { arrowExtension } from '../extensions/ArrowExtension';
 // Checkbox extension for marked
 import { checkboxExtension } from '../extensions/CheckboxExtension';
 
+// Import for typography styles
+import '../lib/styles/typography.css';
+
+// Import for animations styles
+import '../lib/styles/animations.css';
+
 // Configure marked with highlight.js
 const marked = new Marked(
   markedHighlight({
