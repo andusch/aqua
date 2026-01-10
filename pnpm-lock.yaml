@@ -32,6 +32,9 @@ importers:
       '@corvu/resizable':
         specifier: ^0.2.5
         version: 0.2.5(solid-js@1.9.10)
+      '@lezer/highlight':
+        specifier: ^1.2.3
+        version: 1.2.3
       '@tauri-apps/api':
         specifier: ^2.9.1
         version: 2.9.1

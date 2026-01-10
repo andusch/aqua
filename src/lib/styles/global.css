@@ -1,0 +1,34 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Fira+Code&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* smooth resize handle */
+.resizable-container {
+  transition: background-color var(--duration) var(--ease-out);
+}
+.resize-handle {
+  background: var(--border);
+  transition: background-color var(--duration) var(--ease-out);
+}
+.resize-handle:hover {
+  background: var(--accent);
+}
+.resize-indicator {
+  background: var(--accent);
+  transition: transform var(--duration) var(--ease-out);
+}
+.resize-handle[data-active] .resize-indicator {
+  transform: scaleY(1.3);
+}

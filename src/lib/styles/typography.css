@@ -1,0 +1,97 @@
+:root {
+    --base-size: 18px;
+    --code-size: 15px;
+}
+
+html {font-size: var(--base-size);}
+
+/* -------- markdown preview ocean typography -------- */
+.preview {
+    font-family: var(--font-sans);
+    line-height: 1.7;
+    padding: 2rem 3rem;
+    background: var(--bg-soft);
+    color: var(--text);
+    overflow-y: auto;
+    scroll-behavior: smooth; /* soft scroll */
+    font-size: var(--base-size);
+  }
+  
+  /* headings */
+  .preview h1,
+  .preview h2,
+  .preview h3,
+  .preview h4,
+  .preview h5,
+  .preview h6 {
+    margin: 1.6em 0 0.4em;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .preview h1 { font-size: 2.25rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+  .preview h2 { font-size: 1.75rem; }
+  .preview h3 { font-size: 1.4rem; }
+  .preview h4 { font-size: 1.2rem; }
+  
+  /* body copy */
+  .preview p { margin-bottom: 1.2em; }
+  
+  /* inline & code */
+  .preview code {
+    background: var(--bg-mute);
+    color: var(--text-soft);
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+    font-size: 0.9em;
+    font-family: var(--font-mono);
+  }
+  .preview pre {
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 1.2em 0;
+    font-size: var(--code-size);
+    background: #0d1117 !important;
+    color: #e6edf3 !important
+  }
+  .preview pre code { 
+    font-size: var(--code-size);
+    background: #0d1117 !important;
+    color: #e6edf3 !important;
+ }
+  
+  /* quotes */
+  .preview blockquote {
+    border-left: 4px solid var(--accent);
+    padding-left: 1rem;
+    margin: 1.2em 0;
+    color: var(--text-soft);
+    font-style: italic;
+  }
+  
+  /* links */
+  .preview a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: color var(--duration) var(--ease-out);
+  }
+  .preview a:hover { color: var(--accent-hover); text-decoration: underline; }
+  
+  /* lists */
+  .preview ul,
+  .preview ol { margin: 0 0 1.2em 1.4em; }
+  .preview li { margin-bottom: 0.25em; }
+  
+  /* horizontal rule */
+  .preview hr {
+    border: none;
+    height: 1px;
+    background: var(--border);
+    margin: 2em 0;
+  }
+
+  .task-checkbox {
+    margin-right: 0.4em;
+    accent-color: var(--accent);
+    cursor: default;
+  }
