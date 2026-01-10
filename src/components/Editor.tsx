@@ -19,6 +19,9 @@ import { initDB, saveDoc, loadDoc } from '../store/store.ts';
 // Import for throttle function for scroll syncing
 import { throttle } from 'lodash';
 
+// Import for ocean theme
+import { oceanTheme } from '../lib/editor/oceanTheme.ts';
+
 interface EditorProps {
   onChange?: (text: string) => void;
 }
@@ -39,7 +42,7 @@ const Editor = (props: EditorProps) => {
       extensions: [
         keymap.of([...defaultKeymap, indentWithTab]),
         markdown(),
-        oneDark,
+        oceanTheme(),
         syntaxHighlighting(defaultHighlightStyle),
         EditorView.updateListener.of((up) => {
           if (up.docChanged) {
