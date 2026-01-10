@@ -8,7 +8,7 @@ export const checkboxExtension: marked.TokenizerAndRendererExtension = {
     return match ? match.index : -1;
   },
   tokenizer(src) {
-    const rule = /^\[([ xX])\](?=\s)/;
+    const rule = /\[([ xX])\](?=\s)/;
     const match = rule.exec(src);
     if (!match) return undefined;
     return {
