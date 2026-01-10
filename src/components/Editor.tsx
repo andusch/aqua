@@ -41,7 +41,9 @@ const Editor = (props: EditorProps) => {
       doc: saved,
       extensions: [
         keymap.of([...defaultKeymap, indentWithTab]),
-        markdown(),
+        markdown({
+          taskListCheckable: false,
+        }),
         oceanTheme(),
         syntaxHighlighting(defaultHighlightStyle),
         EditorView.updateListener.of((up) => {
