@@ -89,3 +89,9 @@ html {font-size: var(--base-size);}
     background: var(--border);
     margin: 2em 0;
   }
+
+  .task-checkbox {
+    margin-right: 0.4em;
+    accent-color: var(--accent);
+    cursor: default;
+  }

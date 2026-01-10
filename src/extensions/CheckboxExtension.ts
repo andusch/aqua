@@ -1,28 +1,24 @@
 import type { marked } from 'marked';
 
-const checkboxRegex = /^\[([ xX])\] +/;
-
 export const checkboxExtension: marked.TokenizerAndRendererExtension = {
   name: 'checkbox',
-  level: 'inline',
-  start(src: string) {
-    const match = src.match(checkboxRegex);
-    return match ? 0 : -1;
+  level: 'inline',          // only touch the [ ] / [x] part
+  start(src) {
+    const match = src.match(/\[([ x])\](?=\s)/i);
+    return match ? match.index : -1;
   },
-  tokenizer(src: string) {
-    const match = src.match(checkboxRegex);
+  tokenizer(src) {
+    const rule = /^\[([ xX])\](?=\s)/;
+    const match = rule.exec(src);
     if (!match) return undefined;
-    const checked = match[1].toLowerCase() === 'x';
-    const text = src.slice(match[0].length);
     return {
       type: 'checkbox',
       raw: match[0],
-      checked,
-      text, // raw text after the checkbox
+      checked: match[1].toLowerCase() === 'x',
     };
   },
-  renderer(token: any) {
+  renderer(token) {
     const checked = token.checked ? 'checked' : '';
-    return `<label class="check-label"><input type="checkbox" ${checked} data-checkbox> ${token.text}</label>`;
+    return `<input type="checkbox" disabled ${checked} class="task-checkbox">`;
   },
 };
