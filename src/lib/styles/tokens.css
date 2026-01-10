@@ -1,0 +1,53 @@
+:root {
+  /* ocean light */
+  --ocean-50: #f0f9ff;
+  --ocean-100: #e0f2fe;
+  --ocean-200: #bae6fd;
+  --ocean-300: #7dd3fc;
+  --ocean-400: #38bdf8;
+  --ocean-500: #0ea5e9;
+  --ocean-600: #0284c7;
+  --ocean-700: #0369a1;
+  --ocean-800: #075985;
+  --ocean-900: #0c4a6e;
+
+  /* surf white */
+  --surf-50: #ffffff;
+  --surf-100: #f8fafc;
+  --surf-200: #f1f5f9;
+  --surf-300: #e2e8f0;
+  --surf-400: #cbd5e1;
+  --surf-500: #94a3b8;
+
+  /* semantic light */
+  --bg: var(--surf-50);
+  --bg-soft: var(--surf-100);
+  --bg-mute: var(--surf-200);
+  --text: var(--ocean-900);
+  --text-soft: var(--ocean-700);
+  --accent: var(--ocean-500);
+  --accent-hover: var(--ocean-600);
+  --border: var(--surf-300);
+
+  /* typography */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Fira Code", "SF Mono", Monaco, "Cascadia Code", monospace;
+
+  /* motion */
+  --ease-out: cubic-bezier(0.25, 0.8, 0.25, 1);
+  --duration: 200ms;
+}
+
+/* ocean dark (automatic when OS prefers dark) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: var(--ocean-900);
+    --bg-soft: var(--ocean-800);
+    --bg-mute: var(--ocean-700);
+    --text: var(--surf-50);
+    --text-soft: var(--surf-300);
+    --accent: var(--ocean-400);
+    --accent-hover: var(--ocean-300);
+    --border: var(--ocean-700);
+  }
+}
