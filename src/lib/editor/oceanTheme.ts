@@ -19,7 +19,12 @@ const ocean = {
 
 const lightBase = EditorView.theme({
   '&': { backgroundColor: '#ffffff', color: ocean[900] },
-  '.cm-content': { caretColor: ocean[600] },
+  '.cm-content': { 
+    caretColor: ocean[600],
+    fontSize: 'var(--base-size)',
+    lineHeight: '1.65',
+   },
+  '.cm-line': { padding: '0 16px' },
   '.cm-cursor, .cm-dropCursor': { borderLeftColor: ocean[600] },
   '&.cm-focused .cm-selectionBackground, ::selection': { backgroundColor: ocean[200] },
   '.cm-activeLine': { backgroundColor: ocean[50] },
@@ -33,7 +38,11 @@ const lightBase = EditorView.theme({
 
 const darkBase = EditorView.theme({
   '&': { backgroundColor: ocean[900], color: ocean[100] },
-  '.cm-content': { caretColor: ocean[300] },
+  '.cm-content': { 
+    caretColor: ocean[300],
+    fontSize: 'var(--base-size)',
+    lineHeight: '1.65',
+   },
   '.cm-cursor, .cm-dropCursor': { borderLeftColor: ocean[300] },
   '&.cm-focused .cm-selectionBackground, ::selection': { backgroundColor: ocean[700] },
   '.cm-activeLine': { backgroundColor: ocean[800] },
