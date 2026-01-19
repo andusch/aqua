@@ -6,6 +6,42 @@ html, body, #root {
 
 .app {
   display: flex;
+  height: 100%;
+}
+
+.sidebar {
+  width: 200px;
+  height: 100%;
+  background: var(--bg-mute);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+.sidebar h2 {
+  padding: 12px;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar li {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color var(--duration) var(--ease-out);
+}
+
+.sidebar li:hover {
+  background-color: var(--bg-soft);
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
   flex-direction: column;
   height: 100%;
 }
