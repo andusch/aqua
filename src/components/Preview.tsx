@@ -19,6 +19,9 @@ import { throttle } from 'lodash';
 import { arrowExtension } from '../extensions/ArrowExtension';
 // Checkbox extension for marked
 import { checkboxExtension } from '../extensions/CheckboxExtension';
+// Latex extension for marked
+import { latexExtension } from '../extensions/LatexExtension';
+import 'katex/dist/katex.min.css'
 
 // Import for typography styles
 import '../lib/styles/typography.css';
@@ -37,13 +40,11 @@ const marked = new Marked(
       return hljs.highlight(code, { language }).value;
     },
   }),
-).use({ extensions: [arrowExtension, checkboxExtension] });
+).use({ extensions: [arrowExtension, checkboxExtension, latexExtension] });
 
 marked.setOptions({
   breaks: true,
   gfm: true,
-  tables: true,
-  taskLists: true
 });
 
 interface PreviewProps {
@@ -76,18 +77,20 @@ const Preview = (props: PreviewProps) => {
     containerRef.querySelectorAll('pre code').forEach((b) => hljs.highlightElement(b as HTMLElement));
   });
 
-  const renderMarkdown = (markdown : string) => {
-    // Parse the markdown to HTML
-    const html = marked.parse(markdown);
-    // Sanitize HTML to prevent XSS atacks
-    const sanitizedHtml = DOMPurify.sanitize(html);
-    const blockLatexRenderedHtml = sanitizedHtml.replace(/\$\$(.*?)\$\$/gs, (match, p1) => {
-    return `<div class="latex-block">${katex.renderToString(p1.trim(), { throwOnError: false })}</div>`;
-  });
-  const inlineLatexRenderedHtml = blockLatexRenderedHtml.replace(/\$(.*?)\$/g, (match, p1) => {
-    return `<span class="latex-inline">${katex.renderToString(p1.trim(), { throwOnError: false })}</span>`;
-  });
-  return inlineLatexRenderedHtml;
+  const renderMarkdown = (markdown: string) => {
+    const html = marked.parse(markdown) as string;
+  
+    return DOMPurify.sanitize(html, {
+      ADD_TAGS: [
+        "math", "semantics", "annotation", "mtext", "mspace", 
+        "mrow", "mfrac", "root", "annotation-xml", "svg", 
+        "path", "rect", "symbol", "use", "g", "foreignObject"
+      ],
+      ADD_ATTR: [
+        "viewbox", "d", "fill", "stroke", "width", "height", 
+        "xlink:href", "class", "aria-hidden", "style"
+      ],
+    });
   };
 
   return (
