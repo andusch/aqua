@@ -11,6 +11,8 @@ html, body, #root {
 
 .sidebar {
   width: 200px;
+  min-width: 200px;
+  flex-shrink: 0;
   height: 100%;
   background: var(--bg-mute);
   border-right: 1px solid var(--border);
@@ -130,4 +132,26 @@ html, body, #root {
 .cm-editor input[type="checkbox"] {
   margin-right: 0.4rem;
   transform: translateY(1px);
+}
+
+.sidebar-header {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.btn-open {
+  background: #007acc;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.btn-open:hover {
+  background: #0062a3;
 }

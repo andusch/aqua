@@ -29,16 +29,22 @@ const App: Component = () => {
   });
 
   // Handle file selection from sidebar
-  const handleFileSelect = (path: string) => {
+  const handleFileSelect = async (path: string) => {
+
+    const content = await invoke<string>('load_file', {path});
+    setMd(content);
+    fileState.setPath(path);
+    fileState.setModified(false);
+
     // Load the selected file into the editor
-    invoke<string>('load_file', { path }).then((content) => {
-      setMd(content);
-      fileState.setPath(path);
-      fileState.setModified(false);
-    }).catch(() => {
-      // If the file fails to load, show an error message
-      alert(`Failed to load file: ${path}`);
-    });
+    // invoke<string>('load_file', { path }).then((content) => {
+    //   setMd(content);
+    //   fileState.setPath(path);
+    //   fileState.setModified(false);
+    // }).catch(() => {
+    //   // If the file fails to load, show an error message
+    //   alert(`Failed to load file: ${path}`);
+    // });
   }
   
   return (
@@ -51,7 +57,7 @@ const App: Component = () => {
             minSize={0.2}
             class="editor-panel"
           >
-            <Editor onChange={setMd} />
+            <Editor value={md()} onChange={setMd} />
           </Resizable.Panel>
           
           <Resizable.Handle
