@@ -9,6 +9,9 @@ import { markedHighlight } from 'marked-highlight';
 // DOMPurify import for sanitizing HTML
 import DOMPurify from 'dompurify';
 
+// Latex support
+import katex from 'katex';
+
 // Throttle function import
 import { throttle } from 'lodash';
 
@@ -22,8 +25,9 @@ import '../lib/styles/typography.css';
 
 // Import for animations styles
 import '../lib/styles/animations.css';
+import { markdown } from '@codemirror/lang-markdown';
 
-// Configure marked with highlight.js
+// Configure marked with highlight.js and custom extensions
 const marked = new Marked(
   markedHighlight({
     emptyLangClass: 'hljs',
@@ -35,7 +39,12 @@ const marked = new Marked(
   }),
 ).use({ extensions: [arrowExtension, checkboxExtension] });
 
-marked.setOptions({ breaks: true, gfm: true });
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+  tables: true,
+  taskLists: true
+});
 
 interface PreviewProps {
   markdown: string;
@@ -67,11 +76,25 @@ const Preview = (props: PreviewProps) => {
     containerRef.querySelectorAll('pre code').forEach((b) => hljs.highlightElement(b as HTMLElement));
   });
 
+  const renderMarkdown = (markdown : string) => {
+    // Parse the markdown to HTML
+    const html = marked.parse(markdown);
+    // Sanitize HTML to prevent XSS atacks
+    const sanitizedHtml = DOMPurify.sanitize(html);
+    const blockLatexRenderedHtml = sanitizedHtml.replace(/\$\$(.*?)\$\$/gs, (match, p1) => {
+    return `<div class="latex-block">${katex.renderToString(p1.trim(), { throwOnError: false })}</div>`;
+  });
+  const inlineLatexRenderedHtml = blockLatexRenderedHtml.replace(/\$(.*?)\$/g, (match, p1) => {
+    return `<span class="latex-inline">${katex.renderToString(p1.trim(), { throwOnError: false })}</span>`;
+  });
+  return inlineLatexRenderedHtml;
+  };
+
   return (
     <div
       ref={containerRef!}
       class="preview"
-      innerHTML={DOMPurify.sanitize(marked.parse(props.markdown) as string)}
+      innerHTML={renderMarkdown(props.markdown)}
       onScroll={handlePreviewScroll}
     />
   );

@@ -95,3 +95,8 @@ html {font-size: var(--base-size);}
     accent-color: var(--accent);
     cursor: default;
   }
+
+  .latex-block {
+    margin: 1rem 0;
+    text-align: center;
+  }
