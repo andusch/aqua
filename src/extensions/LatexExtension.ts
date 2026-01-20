@@ -3,7 +3,7 @@ import { TokenizerAndRendererExtension } from 'marked';
 
 export const latexExtension: TokenizerAndRendererExtension = {
   name: 'latex',
-  level: 'inline', // Inline level allows it to find $ even inside paragraphs
+  level: 'inline',
   start(src: string) { return src.indexOf('$'); },
   tokenizer(src: string) {
     // 1. Check for Block ($$ ... $$)
@@ -17,7 +17,6 @@ export const latexExtension: TokenizerAndRendererExtension = {
       };
     }
 
-    // 2. Check for Inline ($ ... $)
     const inlineMatch = /^\$((?:[^\$\\]|\\.)+?)\$/.exec(src);
     if (inlineMatch) {
       return {

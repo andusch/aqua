@@ -2,14 +2,17 @@ import { createSignal, onCleanup, onMount } from 'solid-js';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
+// Props
 interface SidebarProps {
   onFileSelect: (path: string) => void;
 }
 
+// Component
 const Sidebar = (props: SidebarProps) => {
   const [files, setFiles] = createSignal<string[]>([]);
   const [currentFolder, setCurrentFolder] = createSignal<string | null>(null);
 
+  // Refresh files
   const refreshFiles = async () => {
     const folder = currentFolder();
     if(!folder) return;
@@ -21,6 +24,7 @@ const Sidebar = (props: SidebarProps) => {
     }
   };
 
+  // Pick folder
   const pickFolder = async () => {
     try {
       const fileList = await invoke<string[]>('open_folder_and_list_files');
@@ -37,6 +41,7 @@ const Sidebar = (props: SidebarProps) => {
     
   }
 
+  // Mount
   onMount(async () => {
     const unListen = await listen('refresh-files', () => {
       refreshFiles();

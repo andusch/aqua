@@ -35,16 +35,6 @@ const App: Component = () => {
     setMd(content);
     fileState.setPath(path);
     fileState.setModified(false);
-
-    // Load the selected file into the editor
-    // invoke<string>('load_file', { path }).then((content) => {
-    //   setMd(content);
-    //   fileState.setPath(path);
-    //   fileState.setModified(false);
-    // }).catch(() => {
-    //   // If the file fails to load, show an error message
-    //   alert(`Failed to load file: ${path}`);
-    // });
   }
   
   return (
