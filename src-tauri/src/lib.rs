@@ -14,6 +14,36 @@ struct OpenedFile {
 
 struct WatcherState(Mutex<Option<notify::RecommendedWatcher>>);
 
+#[tauri::command]
+async fn load_file(path: String) -> Result<String, String> {
+    tokio::fs::read_to_string(path)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// Saves content to a specified file path
+#[tauri::command]
+async fn save_file(_app: AppHandle, path: String, content: String) -> Result<(), String> {
+    tokio::fs::write(path, content)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_files(path: String) -> Result<Vec<String>, String> {
+    let mut file_tree = Vec::new();
+    let entries = fs::read_dir(path).map_err(|e| e.to_string())?;
+    for entry in entries {
+        if let Ok(entry) = entry {
+            let p = entry.path();
+            if p.is_file() && p.extension().map_or(false, |ext| ext == "md") {
+                file_tree.push(p.to_str().unwrap().to_string());
+            }
+        }
+    }
+    Ok(file_tree)
+}
+
 // Opens a file dialog to select a markdown file and reads its content
 #[tauri::command]
 async fn open_file(app: AppHandle) -> Result<OpenedFile, String> {
@@ -43,13 +73,7 @@ async fn open_file(app: AppHandle) -> Result<OpenedFile, String> {
     
 }
 
-// Saves content to a specified file path
-#[tauri::command]
-async fn save_file(_app: AppHandle, path: String, content: String) -> Result<(), String> {
-    tokio::fs::write(path, content)
-        .await
-        .map_err(|e| e.to_string())
-}
+
 
 // Opens a save file dialog and saves the provided text to the selected file
 #[tauri::command]
@@ -73,22 +97,6 @@ async fn save_file_dialog(app: AppHandle, text: String) -> Result<String, String
     }
 }
 
-// Writes text to clipboard
-#[tauri::command]
-async fn clipboard_write(app: AppHandle, text: String) -> Result<(), String> {
-    app.clipboard()
-        .write_text(text)
-        .map_err(|e| e.to_string())
-}
-
-// Reads text from clipboard
-#[tauri::command]
-async fn clipboard_read(app: AppHandle) -> Result<String, String> {
-    app.clipboard()
-        .read_text()
-        .map_err(|e| e.to_string())
-}
-
 #[tauri::command]
 async fn get_file_tree(app: AppHandle) -> Result<Vec<String>, String> {
     // Change app_data_dir() to document_dir() to see actual user files
@@ -110,13 +118,6 @@ async fn get_file_tree(app: AppHandle) -> Result<Vec<String>, String> {
         }
     }
     Ok(file_tree)
-}
-
-#[tauri::command]
-async fn load_file(path: String) -> Result<String, String> {
-    tokio::fs::read_to_string(path)
-        .await
-        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -178,19 +179,20 @@ async fn open_folder_and_list_files(app: AppHandle) -> Result<Vec<String>, Strin
     }
 }
 
+// Writes text to clipboard
 #[tauri::command]
-fn list_files(path: String) -> Result<Vec<String>, String> {
-    let mut file_tree = Vec::new();
-    let entries = fs::read_dir(path).map_err(|e| e.to_string())?;
-    for entry in entries {
-        if let Ok(entry) = entry {
-            let p = entry.path();
-            if p.is_file() && p.extension().map_or(false, |ext| ext == "md") {
-                file_tree.push(p.to_str().unwrap().to_string());
-            }
-        }
-    }
-    Ok(file_tree)
+async fn clipboard_write(app: AppHandle, text: String) -> Result<(), String> {
+    app.clipboard()
+        .write_text(text)
+        .map_err(|e| e.to_string())
+}
+
+// Reads text from clipboard
+#[tauri::command]
+async fn clipboard_read(app: AppHandle) -> Result<String, String> {
+    app.clipboard()
+        .read_text()
+        .map_err(|e| e.to_string())
 }
 
 // Sets up the Tauri application with menus and command handlers
