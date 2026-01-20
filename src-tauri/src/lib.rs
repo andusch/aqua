@@ -1,10 +1,11 @@
+use std::fs;
+use std::sync::Mutex;
+use tauri_plugin_dialog::DialogExt;
+use notify::{Watcher, RecursiveMode};
+use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
 use tauri::{generate_context, generate_handler, AppHandle, Builder, Emitter, Manager};
-use tauri_plugin_dialog::DialogExt;
-use tauri_plugin_clipboard_manager::ClipboardExt;
-use std::fs;
-use notify::{Watcher, RecursiveMode};
-use std::sync::Mutex;
+
 
 #[derive(serde::Serialize)]
 struct OpenedFile {
