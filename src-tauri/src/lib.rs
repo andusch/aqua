@@ -3,12 +3,16 @@ use tauri::{generate_context, generate_handler, AppHandle, Builder, Emitter, Man
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use std::fs;
+use notify::{Watcher, RecursiveMode};
+use std::sync::Mutex;
 
 #[derive(serde::Serialize)]
 struct OpenedFile {
     path: String,
     content: String,
 }
+
+struct WatcherState(Mutex<Option<notify::RecommendedWatcher>>);
 
 // Opens a file dialog to select a markdown file and reads its content
 #[tauri::command]
@@ -117,8 +121,11 @@ async fn load_file(path: String) -> Result<String, String> {
 
 #[tauri::command]
 async fn open_folder_and_list_files(app: AppHandle) -> Result<Vec<String>, String> {
+    
+    let app_for_dialog = app.clone();
+    
     let folder_path = tokio::task::spawn_blocking(move || {
-        app.dialog()
+        app_for_dialog.dialog()
             .file()
             .blocking_pick_folder()
     })
@@ -127,9 +134,28 @@ async fn open_folder_and_list_files(app: AppHandle) -> Result<Vec<String>, Strin
 
     match folder_path {
         Some(path) => {
-            // FIX: Convert FilePath to a String, then to a PathBuf
             let path_string = path.to_string();
-            let path_buf = std::path::PathBuf::from(path_string);
+            let path_buf = std::path::PathBuf::from(path_string.clone());
+
+            // Set-up Watcher
+            let app_handle = app.clone();
+            let path_to_watch = path_buf.clone();
+
+            // Create watcher that emits a "refresh-file" even to JS
+            let mut watcher = notify::recommended_watcher(move | res | {
+                match res {
+                    Ok(_) => {let _ = app_handle.emit("refresh-files", ()); },
+                    Err(e) => println!("watch error: {:?}", e),
+                }
+            }).map_err(|e| e.to_string())?;
+
+            watcher.watch(&path_to_watch, RecursiveMode::NonRecursive).map_err(|e| e.to_string())?;
+
+            let state = app.state::<WatcherState>();
+            let mut managed_watch = state.0.lock().unwrap();
+            *managed_watch = Some(watcher);
+
+            list_files(path_string);
             
             let mut file_tree = Vec::new();
             
@@ -152,10 +178,26 @@ async fn open_folder_and_list_files(app: AppHandle) -> Result<Vec<String>, Strin
     }
 }
 
+#[tauri::command]
+fn list_files(path: String) -> Result<Vec<String>, String> {
+    let mut file_tree = Vec::new();
+    let entries = fs::read_dir(path).map_err(|e| e.to_string())?;
+    for entry in entries {
+        if let Ok(entry) = entry {
+            let p = entry.path();
+            if p.is_file() && p.extension().map_or(false, |ext| ext == "md") {
+                file_tree.push(p.to_str().unwrap().to_string());
+            }
+        }
+    }
+    Ok(file_tree)
+}
+
 // Sets up the Tauri application with menus and command handlers
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     Builder::default()
+        .manage(WatcherState(Mutex::new(None)))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
@@ -233,7 +275,17 @@ pub fn run() {
                 };
             }
         })
-        .invoke_handler(generate_handler![open_file, save_file, save_file_dialog, clipboard_write, clipboard_read, get_file_tree, load_file, open_folder_and_list_files])
+        .invoke_handler(generate_handler![
+            open_file,
+            save_file,
+            save_file_dialog,
+            clipboard_write,
+            clipboard_read,
+            get_file_tree,
+            load_file,
+            open_folder_and_list_files,
+            list_files
+        ])
         .run(generate_context!())
         .expect("error while running tauri application");
 }

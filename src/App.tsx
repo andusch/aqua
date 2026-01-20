@@ -21,7 +21,7 @@ const App: Component = () => {
   
   const [md, setMd] = createSignal("# Hello Aqua\nStart typing…");
 
-  // Update window title on file path or modified change
+  // Update window title on file path or modified changeb
   createEffect(() => {
     const name = fileState.path()?.split(/[/\\]/).pop() || 'Untitled.md';
     const flag = fileState.modified() ? ' ●' : '';
