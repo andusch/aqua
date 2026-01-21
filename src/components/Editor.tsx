@@ -1,4 +1,4 @@
-import { onMount, createSignal } from 'solid-js';
+import { onMount, createSignal, createEffect } from 'solid-js';
 
 // CodeMirror imports
 import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
@@ -23,12 +23,25 @@ import { throttle } from 'lodash';
 import { oceanTheme } from '../lib/editor/oceanTheme.ts';
 
 interface EditorProps {
+  value: string;
   onChange?: (text: string) => void;
 }
 
 const Editor = (props: EditorProps) => {
   let parentEl: HTMLDivElement;
   const [view, setView] = createSignal<EditorView>();
+
+  createEffect(() => {
+    const v = view();
+    if(!v) return;
+
+    const currentDoc = v.state.doc.toString();
+    if(props.value != currentDoc){
+      v.dispatch({
+        changes: { from: 0, to: currentDoc.length, insert: props.value}
+      });
+    }
+  });
 
   let lastExternalScroll = 0;
 
