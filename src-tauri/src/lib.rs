@@ -1,6 +1,5 @@
-use std::fs::{self, File};
+use std::fs::{self};
 use std::sync::Mutex;
-use tauri::utils::pattern;
 use tauri_plugin_dialog::DialogExt;
 use notify::{Watcher, RecursiveMode};
 use tauri_plugin_clipboard_manager::ClipboardExt;

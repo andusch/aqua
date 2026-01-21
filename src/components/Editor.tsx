@@ -20,7 +20,7 @@ import { initDB, saveDoc, loadDoc } from '../store/store.ts';
 import { throttle } from 'lodash';
 
 // Import for ocean theme
-import { oceanTheme } from '../lib/editor/oceanTheme.ts';
+import { oceanTheme } from '../styles/themes/oceanTheme.ts';
 
 interface EditorProps {
   value: string;

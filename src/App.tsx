@@ -15,7 +15,7 @@ import Sidebar from "./components/Sidebar.tsx";
 // file state store
 import { fileState } from './store/fileState';
 // styles
-import "./App.css";
+import "./styles/main.css";
 
 const App: Component = () => {
   

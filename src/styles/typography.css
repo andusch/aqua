@@ -1,0 +1,30 @@
+.preview {
+  font-family: var(--font-sans);
+  line-height: 1.7;
+  padding: 2rem 3rem;
+  font-size: var(--base-size);
+}
+
+.preview h1, .preview h2, .preview h3 {
+  margin: 1.6em 0 0.4em;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.preview h1 { font-size: 2.25rem; border-bottom: 1px solid var(--border); }
+
+.preview code {
+  background: var(--bg-mute);
+  color: var(--text-soft);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+}
+
+.preview pre {
+  padding: 1rem;
+  border-radius: 6px;
+  background: #0d1117 !important; /* Keep dark for code contrast */
+  color: #e6edf3 !important;
+  margin: 1.2em 0;
+}

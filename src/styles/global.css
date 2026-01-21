@@ -12,23 +12,44 @@ html, body, #root {
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
+  overflow: hidden;
 }
 
-/* smooth resize handle */
-.resizable-container {
-  transition: background-color var(--duration) var(--ease-out);
+/* Base App Layout */
+.app {
+  display: flex;
+  height: 100vh;
 }
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Corvu Resizable Styling */
+.resizable-container {
+  height: 100%;
+  width: 100%;
+}
+
 .resize-handle {
   background: var(--border);
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: background-color var(--duration) var(--ease-out);
 }
-.resize-handle:hover {
+
+.resize-handle:hover, .resize-handle[data-active] {
   background: var(--accent);
 }
+
 .resize-indicator {
-  background: var(--accent);
-  transition: transform var(--duration) var(--ease-out);
-}
-.resize-handle[data-active] .resize-indicator {
-  transform: scaleY(1.3);
+  width: 2px;
+  height: 30px;
+  background: var(--text-soft);
+  border-radius: 1px;
 }
