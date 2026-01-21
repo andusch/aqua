@@ -9,6 +9,9 @@ import { markedHighlight } from 'marked-highlight';
 // DOMPurify import for sanitizing HTML
 import DOMPurify from 'dompurify';
 
+// Latex support
+import katex from 'katex';
+
 // Throttle function import
 import { throttle } from 'lodash';
 
@@ -16,14 +19,18 @@ import { throttle } from 'lodash';
 import { arrowExtension } from '../extensions/ArrowExtension';
 // Checkbox extension for marked
 import { checkboxExtension } from '../extensions/CheckboxExtension';
+// Latex extension for marked
+import { latexExtension } from '../extensions/LatexExtension';
+import 'katex/dist/katex.min.css'
 
 // Import for typography styles
 import '../lib/styles/typography.css';
 
 // Import for animations styles
 import '../lib/styles/animations.css';
+import { markdown } from '@codemirror/lang-markdown';
 
-// Configure marked with highlight.js
+// Configure marked with highlight.js and custom extensions
 const marked = new Marked(
   markedHighlight({
     emptyLangClass: 'hljs',
@@ -33,9 +40,12 @@ const marked = new Marked(
       return hljs.highlight(code, { language }).value;
     },
   }),
-).use({ extensions: [arrowExtension, checkboxExtension] });
+).use({ extensions: [arrowExtension, checkboxExtension, latexExtension] });
 
-marked.setOptions({ breaks: true, gfm: true });
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+});
 
 interface PreviewProps {
   markdown: string;
@@ -67,11 +77,27 @@ const Preview = (props: PreviewProps) => {
     containerRef.querySelectorAll('pre code').forEach((b) => hljs.highlightElement(b as HTMLElement));
   });
 
+  const renderMarkdown = (markdown: string) => {
+    const html = marked.parse(markdown) as string;
+  
+    return DOMPurify.sanitize(html, {
+      ADD_TAGS: [
+        "math", "semantics", "annotation", "mtext", "mspace", 
+        "mrow", "mfrac", "root", "annotation-xml", "svg", 
+        "path", "rect", "symbol", "use", "g", "foreignObject"
+      ],
+      ADD_ATTR: [
+        "viewbox", "d", "fill", "stroke", "width", "height", 
+        "xlink:href", "class", "aria-hidden", "style"
+      ],
+    });
+  };
+
   return (
     <div
       ref={containerRef!}
       class="preview"
-      innerHTML={DOMPurify.sanitize(marked.parse(props.markdown) as string)}
+      innerHTML={renderMarkdown(props.markdown)}
       onScroll={handlePreviewScroll}
     />
   );
