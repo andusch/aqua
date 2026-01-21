@@ -155,3 +155,57 @@ html, body, #root {
 .btn-open:hover {
   background: #0062a3;
 }
+
+/* ... existing code ... */
+
+.sidebar {
+  width: 250px; /* Made slightly wider for nested names */
+  min-width: 200px;
+  flex-shrink: 0;
+  height: 100%;
+  background: var(--bg-mute);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  user-select: none; /* Prevent text selection when toggling folders */
+}
+
+/* New Tree Styles */
+.file-tree {
+  padding-bottom: 20px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  cursor: pointer;
+  color: #ccc;
+  font-size: 0.9rem;
+  transition: background 0.1s;
+}
+
+.file-item:hover {
+  background-color: var(--bg-soft);
+  color: #fff;
+}
+
+.file-item .icon {
+  font-size: 1rem;
+  opacity: 0.7;
+}
+
+.empty-state {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+/* Remove old list styles if present */
+.sidebar ul, .sidebar li {
+  all: unset;
+}
+
+/* ... existing code ... */
