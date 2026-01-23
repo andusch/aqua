@@ -1,11 +1,12 @@
 // solid-js
-import { Component, createSignal, createEffect } from "solid-js";
+import { Component, createSignal, createEffect, onMount, onCleanup } from "solid-js";
 // Resizable import
 import Resizable from '@corvu/resizable';
 
 // Tauri import
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 // components
 import Editor from "./components/Editor.tsx";
@@ -16,6 +17,8 @@ import Sidebar from "./components/Sidebar.tsx";
 import { fileState } from './store/fileState';
 // styles
 import "./styles/main.css";
+// utils
+import { exportToHtml, printToPdf } from './utils/export.ts';
 
 const App: Component = () => {
   
@@ -28,6 +31,33 @@ const App: Component = () => {
     try { getCurrentWindow().setTitle(`${name}${flag} - Aqua`); } catch {}
   });
 
+  onMount(async() => {
+
+    console.log("App mounted, setting up menu listeners.");
+    
+    const unlistenHtml = await listen("menu-export-html", () => {
+      console.log("Export to HTML menu item clicked.");
+      const previewEl = document.querySelector('.preview');
+      if (previewEl) {
+        exportToHtml(previewEl.innerHTML, "document");
+      }
+      else {
+        console.error("Preview element not found for export.");
+      }
+    });
+
+    const unlistenPdf = await listen("menu-print-pdf", () => {
+      console.log("Print to PDF menu item clicked.");
+      printToPdf();
+    });
+
+    onCleanup(() => {
+      unlistenHtml();
+      unlistenPdf();
+    });
+
+  });
+
   // Handle file selection from sidebar
   const handleFileSelect = async (path: string) => {
 
@@ -35,6 +65,7 @@ const App: Component = () => {
     setMd(content);
     fileState.setPath(path);
     fileState.setModified(false);
+
   }
   
   return (

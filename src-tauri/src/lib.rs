@@ -201,6 +201,7 @@ pub fn run() {
     Builder::default()
         .manage(WatcherState(Mutex::new(None)))
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
             let file_menu = Submenu::with_items(
@@ -220,6 +221,14 @@ pub fn run() {
                     &MenuItemBuilder::new("Save")
                         .id("save")
                         .accelerator("CmdOrCtrl+S")
+                        .build(app)?,
+                    &MenuItemBuilder::new("Export as HTML")
+                        .id("menu-export-html")
+                        .accelerator("CmdOrCtrl+E")
+                        .build(app)?,
+                    &MenuItemBuilder::new("Print to PDF")
+                        .id("menu-print-pdf")
+                        .accelerator("CmdOrCtrl+P")
                         .build(app)?,
                 ],
             )?;
@@ -267,6 +276,8 @@ pub fn run() {
                     "new" => win.emit("menu-new", ()),
                     "open" => win.emit("menu-open", ()),
                     "save" => win.emit("menu-save", ()),
+                    "menu-export-html" => win.emit("menu-export-html", ()),
+                    "menu-print-pdf" => win.emit("menu-print-pdf", ()),
                     "undo" => win.emit("undo", ()),
                     "redo" => win.emit("redo", ()),
                     "cut" => win.emit("cut", ()),
