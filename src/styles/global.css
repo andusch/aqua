@@ -1,0 +1,90 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Fira+Code&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* Base App Layout */
+.app {
+  display: flex;
+  height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Corvu Resizable Styling */
+.resizable-container {
+  height: 100%;
+  width: 100%;
+}
+
+.resize-handle {
+  background: var(--border);
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--duration) var(--ease-out);
+}
+
+.resize-handle:hover, .resize-handle[data-active] {
+  background: var(--accent);
+}
+
+.resize-indicator {
+  width: 2px;
+  height: 30px;
+  background: var(--text-soft);
+  border-radius: 1px;
+}
+
+@media print {
+
+  .sidebar, .editor-panel, .resize-handle, .sidebar-header {
+    display: none !important;
+  }
+
+  .app, .main-content, .resizable-container, .preview-panel {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .preview {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  h1, h2, h3, p {
+    color: black !important;
+    page-break-inside: avoid;
+  }
+
+  pre, code {
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+  }
+}

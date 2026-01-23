@@ -24,10 +24,10 @@ import { latexExtension } from '../extensions/LatexExtension';
 import 'katex/dist/katex.min.css'
 
 // Import for typography styles
-import '../lib/styles/typography.css';
+import '../styles/typography.css';
 
 // Import for animations styles
-import '../lib/styles/animations.css';
+import '../styles/animations.css';
 import { markdown } from '@codemirror/lang-markdown';
 
 // Configure marked with highlight.js and custom extensions

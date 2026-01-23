@@ -1,4 +1,4 @@
-use std::fs;
+use std::fs::{self};
 use std::sync::Mutex;
 use tauri_plugin_dialog::DialogExt;
 use notify::{Watcher, RecursiveMode};
@@ -6,6 +6,15 @@ use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
 use tauri::{generate_context, generate_handler, AppHandle, Builder, Emitter, Manager};
 
+use std::path::Path;
+
+#[derive(serde::Serialize, Clone)]
+struct FileNode {
+    name: String,
+    path: String,
+    is_dir: bool,
+    children: Option<Vec<FileNode>>,
+}
 
 #[derive(serde::Serialize)]
 struct OpenedFile {
@@ -14,6 +23,49 @@ struct OpenedFile {
 }
 
 struct WatcherState(Mutex<Option<notify::RecommendedWatcher>>);
+
+fn read_dir_recursive(path: &Path) -> Vec<FileNode> {
+    let mut nodes = Vec::new();
+    if let Ok(entries) = fs::read_dir(path) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            let name = p.file_name().unwrap_or_default().to_string_lossy().to_string();
+
+            if name.starts_with('.') {
+                continue;
+            }
+
+            if p.is_dir() {
+                let children = read_dir_recursive(&p);
+                nodes.push(FileNode {
+                    name,
+                    path: p.to_string_lossy().to_string(),
+                    is_dir: true,
+                    children: Some(children),
+                });
+            }
+            else if p.extension().map_or(false, |ext| ext == "md") {
+                nodes.push(FileNode {
+                    name,
+                    path: p.to_string_lossy().to_string(),
+                    is_dir: false,
+                    children: None,
+                });
+            }
+        }
+    }
+
+    nodes.sort_by(|a, b | {
+        match (a.is_dir, b.is_dir) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+        }
+    });
+
+    nodes
+
+}
 
 #[tauri::command]
 async fn load_file(path: String) -> Result<String, String> {
@@ -31,18 +83,47 @@ async fn save_file(_app: AppHandle, path: String, content: String) -> Result<(),
 }
 
 #[tauri::command]
-fn list_files(path: String) -> Result<Vec<String>, String> {
-    let mut file_tree = Vec::new();
-    let entries = fs::read_dir(path).map_err(|e| e.to_string())?;
-    for entry in entries {
-        if let Ok(entry) = entry {
-            let p = entry.path();
-            if p.is_file() && p.extension().map_or(false, |ext| ext == "md") {
-                file_tree.push(p.to_str().unwrap().to_string());
-            }
+async fn open_folder_and_list_files(app: AppHandle) -> Result<Vec<FileNode>, String> {
+    
+    let app_for_dialog = app.clone();
+    
+    let folder_path = tokio::task::spawn_blocking(move || {
+        app_for_dialog.dialog()
+            .file()
+            .blocking_pick_folder()
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    match folder_path {
+        Some(path) => {
+            let path_string = path.to_string();
+            let path_buf = std::path::PathBuf::from(path_string.clone());
+
+            // Set-up Watcher
+            let app_handle = app.clone();
+            let path_to_watch = path_buf.clone();
+
+            let mut watcher = notify::recommended_watcher(move | res | {
+                match res {
+                    Ok(_) => { let _ = app_handle.emit("refresh-files", ()); },
+                    Err(e) => println!("watch error: {:?}", e),
+                }
+            }).map_err(|e| e.to_string())?;
+
+            // Changed to Recursive watching
+            watcher.watch(&path_to_watch, RecursiveMode::Recursive).map_err(|e| e.to_string())?;
+
+            let state = app.state::<WatcherState>();
+            let mut managed_watch = state.0.lock().unwrap();
+            *managed_watch = Some(watcher);
+
+            // Generate Tree
+            let tree = read_dir_recursive(&path_buf);
+            Ok(tree)
         }
+        None => Err("cancelled".into()),
     }
-    Ok(file_tree)
 }
 
 // Opens a file dialog to select a markdown file and reads its content
@@ -98,88 +179,6 @@ async fn save_file_dialog(app: AppHandle, text: String) -> Result<String, String
     }
 }
 
-#[tauri::command]
-async fn get_file_tree(app: AppHandle) -> Result<Vec<String>, String> {
-    // Change app_data_dir() to document_dir() to see actual user files
-    let current_dir = app.path().document_dir().map_err(|e| e.to_string())?;
-
-    let mut file_tree = Vec::new();
-    let entries = fs::read_dir(current_dir).map_err(|e| e.to_string())?;
-
-    for entry in entries {
-        if let Ok(entry) = entry {
-            let path = entry.path();
-            let is_md = path.extension().map_or(false, |ext| ext == "md");
-            
-            if path.is_file() && is_md {
-                if let Some(path_str) = path.to_str() {
-                    file_tree.push(path_str.to_string());
-                }
-            }
-        }
-    }
-    Ok(file_tree)
-}
-
-#[tauri::command]
-async fn open_folder_and_list_files(app: AppHandle) -> Result<Vec<String>, String> {
-    
-    let app_for_dialog = app.clone();
-    
-    let folder_path = tokio::task::spawn_blocking(move || {
-        app_for_dialog.dialog()
-            .file()
-            .blocking_pick_folder()
-    })
-    .await
-    .map_err(|e| e.to_string())?;
-
-    match folder_path {
-        Some(path) => {
-            let path_string = path.to_string();
-            let path_buf = std::path::PathBuf::from(path_string.clone());
-
-            // Set-up Watcher
-            let app_handle = app.clone();
-            let path_to_watch = path_buf.clone();
-
-            // Create watcher that emits a "refresh-file" even to JS
-            let mut watcher = notify::recommended_watcher(move | res | {
-                match res {
-                    Ok(_) => {let _ = app_handle.emit("refresh-files", ()); },
-                    Err(e) => println!("watch error: {:?}", e),
-                }
-            }).map_err(|e| e.to_string())?;
-
-            watcher.watch(&path_to_watch, RecursiveMode::NonRecursive).map_err(|e| e.to_string())?;
-
-            let state = app.state::<WatcherState>();
-            let mut managed_watch = state.0.lock().unwrap();
-            *managed_watch = Some(watcher);
-
-            list_files(path_string);
-            
-            let mut file_tree = Vec::new();
-            
-            // Read the selected directory
-            let entries = fs::read_dir(path_buf).map_err(|e| e.to_string())?;
-
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    let p = entry.path();
-                    if p.is_file() && p.extension().map_or(false, |ext| ext == "md") {
-                        if let Some(path_str) = p.to_str() {
-                            file_tree.push(path_str.to_string());
-                        }
-                    }
-                }
-            }
-            Ok(file_tree)
-        }
-        None => Err("cancelled".into()),
-    }
-}
-
 // Writes text to clipboard
 #[tauri::command]
 async fn clipboard_write(app: AppHandle, text: String) -> Result<(), String> {
@@ -202,6 +201,7 @@ pub fn run() {
     Builder::default()
         .manage(WatcherState(Mutex::new(None)))
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
             let file_menu = Submenu::with_items(
@@ -221,6 +221,14 @@ pub fn run() {
                     &MenuItemBuilder::new("Save")
                         .id("save")
                         .accelerator("CmdOrCtrl+S")
+                        .build(app)?,
+                    &MenuItemBuilder::new("Export as HTML")
+                        .id("menu-export-html")
+                        .accelerator("CmdOrCtrl+E")
+                        .build(app)?,
+                    &MenuItemBuilder::new("Print to PDF")
+                        .id("menu-print-pdf")
+                        .accelerator("CmdOrCtrl+P")
                         .build(app)?,
                 ],
             )?;
@@ -268,6 +276,8 @@ pub fn run() {
                     "new" => win.emit("menu-new", ()),
                     "open" => win.emit("menu-open", ()),
                     "save" => win.emit("menu-save", ()),
+                    "menu-export-html" => win.emit("menu-export-html", ()),
+                    "menu-print-pdf" => win.emit("menu-print-pdf", ()),
                     "undo" => win.emit("undo", ()),
                     "redo" => win.emit("redo", ()),
                     "cut" => win.emit("cut", ()),
@@ -284,10 +294,8 @@ pub fn run() {
             save_file_dialog,
             clipboard_write,
             clipboard_read,
-            get_file_tree,
             load_file,
             open_folder_and_list_files,
-            list_files
         ])
         .run(generate_context!())
         .expect("error while running tauri application");

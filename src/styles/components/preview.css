@@ -1,0 +1,43 @@
+.preview {
+  height: 100%;
+  overflow-y: auto;
+  padding: 2rem 3rem;
+  background: var(--bg-soft);
+  color: var(--text);
+  /* This prevents margin collapse */
+  display: flow-root; 
+}
+
+/* Remove margin from the first header so it sits at the top */
+.preview > *:first-child {
+  margin-top: 0 !important;
+}
+
+/* Fix the checkbox alignment in the list */
+.preview .task-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 2px solid var(--accent);
+  border-radius: 4px;
+  background-color: transparent;
+  vertical-align: middle;
+  margin-right: 0.5rem;
+  position: relative;
+  cursor: default;
+}
+
+.preview .task-checkbox:checked {
+  background-color: var(--accent);
+}
+
+.preview .task-checkbox:checked::after {
+  content: '✓';
+  position: absolute;
+  color: white;
+  font-size: 0.8rem;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}

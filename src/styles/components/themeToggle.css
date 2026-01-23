@@ -1,0 +1,67 @@
+.theme-switch-wrapper {
+  /* Push to bottom of parent */
+  margin-top: auto; 
+  margin-bottom: 1rem;
+  
+  /* Centering logic */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  /* Visual polish */
+  padding: 2rem 1rem; 
+  width: 100%;
+  border-top: 1px solid var(--border);
+  background: var(--bg-soft); /* Subtle distinction from file tree */
+}
+
+.theme-label {
+  margin-bottom: 8px;
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+  color: var(--text-soft);
+  text-transform: uppercase;
+}
+
+.theme-switch {
+  position: relative;
+  width: 54px;
+  height: 28px;
+  border-radius: 20px;
+  background-color: var(--bg-mute);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.4s var(--ease-out);
+}
+
+.switch-handle {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background-color: var(--surf-50);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+  /* This creates the "spring" effect */
+  transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), background-color 0.3s;
+}
+
+[data-theme="dark"] .switch-handle {
+  transform: translateX(26px);
+  background-color: var(--ocean-800);
+}
+
+.icon {
+  font-size: 12px;
+  user-select: none;
+}
+
+.theme-switch {
+  margin: 0 auto;
+  display: block;
+}

@@ -1,0 +1,23 @@
+.editor {
+  height: 100%;
+  width: 100%;
+  overflow: hidden; /* Let CodeMirror handle internal scrolling */
+  background: var(--bg);
+}
+
+/* Ensure the CodeMirror instance fills the panel */
+.cm-editor {
+  height: 100%;
+}
+
+/* Customizing the checkbox appearance inside the editor */
+.cm-editor input[type="checkbox"] {
+  margin-right: 0.4rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Hide the native focus ring since CodeMirror provides its own */
+.cm-focused {
+  outline: none !important;
+}
