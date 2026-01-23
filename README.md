@@ -30,15 +30,6 @@ It gives you a split-pane writing experience: markdown on the left, live preview
 
 <!-- --- -->
 
-## 🚀 Download
-
-Grab the latest release for your OS:  
-[Releases](https://github.com/YourUser/aqua/releases)
-
-Or build from source (see below).
-
----
-
 ## 🛠️ Build from Source
 
 ### Prerequisites
@@ -52,7 +43,7 @@ Or build from source (see below).
 
 ### 1. Clone
 ```bash
-git clone https://github.com/YourUser/aqua.git
+git clone https://github.com/andusch/aqua.git
 cd aqua
 
 ### 2. Install dependencies
