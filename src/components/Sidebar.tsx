@@ -1,7 +1,12 @@
+// SolidJS imports
 import { createSignal, onCleanup, onMount, Show, For } from 'solid-js';
+// Tauri imports
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+// Folder Tree Nodes
 import { FileNode } from '../types';
+// Theme Toggle Component
+import { ThemeToggle } from './ThemeToggle';
 
 // Props
 interface SidebarProps {
@@ -79,10 +84,12 @@ const Sidebar = (props: SidebarProps) => {
 
   return (
     <div class="sidebar">
+      
       <div class="sidebar-header">
         <h2>Workspace</h2>
         <button onClick={pickFolder} class="btn-open">Open Project</button>
       </div>
+      
       <div class="file-tree">
         <For each={fileTree()}>
           {(node) => <FileTreeItem node={node} onSelect={props.onFileSelect} depth={0} />}
@@ -91,6 +98,9 @@ const Sidebar = (props: SidebarProps) => {
             <div class="empty-state">No folder open</div>
         </Show>
       </div>
+
+      <ThemeToggle />
+
     </div>
   );
 };
