@@ -1,0 +1,51 @@
+:root {
+  /* Ocean Palette */
+  --ocean-50: #f0f9ff;
+  --ocean-100: #e0f2fe;
+  --ocean-200: #bae6fd;
+  --ocean-300: #7dd3fc;
+  --ocean-400: #38bdf8;
+  --ocean-500: #0ea5e9;
+  --ocean-600: #0284c7;
+  --ocean-700: #0369a1;
+  --ocean-800: #075985;
+  --ocean-900: #0c4a6e;
+
+  /* Surf Palette */
+  --surf-50: #ffffff;
+  --surf-100: #f8fafc;
+  --surf-200: #f1f5f9;
+  --surf-300: #e2e8f0;
+  --surf-400: #cbd5e1;
+  --surf-500: #94a3b8;
+
+  /* Typography & Motion */
+  --font-sans: "Inter", -apple-system, system-ui, sans-serif;
+  --font-mono: "Fira Code", monospace;
+  --ease-out: cubic-bezier(0.25, 0.8, 0.25, 1);
+  --duration: 250ms;
+  --base-size: 18px;
+  --code-size: 15px;
+}
+
+/* LIGHT THEME */
+:root, [data-theme="light"] {
+  --bg: var(--surf-50);
+  --text: var(--ocean-900); /* Dark Blue - very visible */
+  --text-soft: var(--ocean-700);
+  --accent: var(--ocean-600);
+  --border: var(--surf-300);
+  /* Brackets/Syntax fix for Light */
+  --code-syntax: var(--ocean-800); 
+}
+
+/* DARK THEME */
+[data-theme="dark"] {
+  --bg: var(--ocean-900); /* Deep Dark Blue */
+  --text: var(--surf-50);  /* White - very visible */
+  --text-soft: var(--surf-200);
+  --accent: var(--ocean-300); /* Bright Blue */
+  --border: var(--ocean-800);
+  /* Brackets/Syntax fix for Dark */
+  --code-syntax: var(--ocean-100); 
+}
