@@ -13,7 +13,7 @@ const themeStyles = EditorView.theme({
   },
   '.cm-line': { padding: '0 16px' },
   '.cm-cursor': { borderLeftColor: 'var(--accent)' },
-  '&.cm-focused .cm-selectionBackground, ::selection': { backgroundColor: 'var(--ocean-200)' },
+  '&.cm-focused .cm-selectionBackground, ::selection': { backgroundColor: 'var(--bg-mute)' },
   '.cm-activeLine': { backgroundColor: 'var(--bg-soft)' },
   '.cm-gutters': { 
     backgroundColor: 'var(--bg-soft)', 
@@ -29,6 +29,8 @@ const highlightStyle = HighlightStyle.define([
   { tag: tags.comment, color: 'var(--ocean-400)', fontStyle: 'italic' },
   { tag: tags.strong, fontWeight: 'bold' },
   { tag: tags.emphasis, fontStyle: 'italic' },
+  { tag: tags.punctuation, color: 'var(--code-syntax)' },
+  { tag: tags.bracket, color: 'var(--code-syntax)' },
 ]);
 
 export const oceanTheme = (): Extension[] => [

@@ -19,6 +19,8 @@ import { fileState } from './store/fileState';
 import "./styles/main.css";
 // utils
 import { exportToHtml, printToPdf } from './utils/export.ts';
+// 
+import { themeState } from './store/themeState.ts';
 
 const App: Component = () => {
   
