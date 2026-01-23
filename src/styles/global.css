@@ -53,3 +53,38 @@ html, body, #root {
   background: var(--text-soft);
   border-radius: 1px;
 }
+
+@media print {
+
+  .sidebar, .editor-panel, .resize-handle, .sidebar-header {
+    display: none !important;
+  }
+
+  .app, .main-content, .resizable-container, .preview-panel {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .preview {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  h1, h2, h3, p {
+    color: black !important;
+    page-break-inside: avoid;
+  }
+
+  pre, code {
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+  }
+}
