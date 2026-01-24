@@ -21,6 +21,7 @@ import "./styles/main.css";
 import { exportToHtml, printToPdf } from './utils/export.ts';
 // 
 import { themeState } from './store/themeState.ts';
+import StatusBar from "./components/StatusBar.tsx";
 
 const App: Component = () => {
   
@@ -71,6 +72,7 @@ const App: Component = () => {
   }
   
   return (
+    <div class="app-container">
     <div class="app">
       <Sidebar onFileSelect={handleFileSelect} />
       <div class="main-content">
@@ -99,6 +101,10 @@ const App: Component = () => {
           </Resizable.Panel>
         </Resizable>
       </div>
+    </div>
+
+    <StatusBar content={md()} />
+
     </div>
   );
 };
