@@ -12,9 +12,9 @@
   "app": {
     "windows": [
       {
-        "title": "aqua",
-        "width": 1600,
-        "height": 1200
+        "title": "Aqua",
+        "width": 800,
+        "height": 600
       }
     ],
     "security": {
