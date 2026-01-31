@@ -20,3 +20,25 @@ body, div, section, header, aside {
 .cm-content {
   transition: none !important;
 }
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: var(--bg);
+}
+
+.app {
+  display: flex;
+  flex: 1; /* This pushes the status bar down */
+  overflow: hidden; /* Prevents double scrollbars */
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
