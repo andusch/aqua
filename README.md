@@ -17,7 +17,7 @@ It gives you a split-pane writing experience: markdown on the left, live preview
 | ⚡ **Fast** | SolidJS reactivity + Rust performance |
 | 🎯 **Minimal** | No toolbars, no clutter—just your text |
 | 🖥️ **Native** | macOS, Windows & Linux builds via Tauri |
-| 🪶 **Lightweight** | &lt; 5 MB installer, &lt; 50 MB RAM |
+| 🪶 **Lightweight** | &lt; 5 MB installer, &lt; 90 MB RAM |
 | 🔒 **Safe** | All file ops are sandboxed by Tauri |
 | 🎨 **Pretty** | GitHub-dark code blocks |
 | 🗂️ **Portable** | Single `.md` files, no databases |
@@ -27,6 +27,10 @@ It gives you a split-pane writing experience: markdown on the left, live preview
 <!-- ## 🎬 Screenshot
 
 *(Drag-and-drop your own shot here once you ship)* -->
+
+![Aqua Screenshort LightMode](/assets/aqua%20light.png)
+
+![Aqua Screenshort DarkMode](/assets/aqua%20dark.png)
 
 <!-- --- -->
 
