@@ -28,6 +28,10 @@ It gives you a split-pane writing experience: markdown on the left, live preview
 
 *(Drag-and-drop your own shot here once you ship)* -->
 
+![Aqua Screenshort LightMode](/assets/aqua%20light.png)
+
+![Aqua Screenshort DarkMode](/assets/aqua%20dark.png)
+
 <!-- --- -->
 
 ## 🛠️ Build from Source
