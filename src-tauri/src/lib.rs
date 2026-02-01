@@ -1,12 +1,11 @@
 use std::fs::{self};
+use std::path::Path;
 use std::sync::Mutex;
 use tauri_plugin_dialog::DialogExt;
 use notify::{Watcher, RecursiveMode};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
 use tauri::{generate_context, generate_handler, AppHandle, Builder, Emitter, Manager};
-
-use std::path::Path;
 
 #[derive(serde::Serialize, Clone)]
 struct FileNode {
@@ -69,9 +68,16 @@ fn read_dir_recursive(path: &Path) -> Vec<FileNode> {
 
 #[tauri::command]
 async fn load_file(path: String) -> Result<String, String> {
-    tokio::fs::read_to_string(path)
-        .await
-        .map_err(|e| e.to_string())
+    
+    let p = Path::new(&path);
+
+    let canonical_path = p.canonicalize().map_err(|_| "Invalid path")?;
+
+    std::fs::read_to_string(canonical_path).map_err(|e| e.to_string())
+
+    // tokio::fs::read_to_string(path)
+    //     .await
+    //     .map_err(|e| e.to_string())
 }
 
 // Saves content to a specified file path

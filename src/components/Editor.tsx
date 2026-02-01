@@ -81,10 +81,15 @@ const Editor = (props: EditorProps) => {
 
         EditorView.domEventHandlers({
           scroll: throttle((event) => {
-            if (Date.now() - lastExternalScroll < 100) return;
+            
             const el = event.target as HTMLElement;
+            if(!el || !parentEl) return;
+
+            if(Date.now() - lastExternalScroll < 100) return;
+
             const pct = el.scrollTop / (el.scrollHeight - el.clientHeight);
             window.dispatchEvent(new CustomEvent('editor-scroll', { detail: pct }));
+            
           }, 50),
         }),
 
