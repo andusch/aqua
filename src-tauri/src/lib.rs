@@ -1,5 +1,5 @@
 use std::fs::{self};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri_plugin_dialog::DialogExt;
 use notify::{Watcher, RecursiveMode};
@@ -69,23 +69,28 @@ fn read_dir_recursive(path: &Path) -> Vec<FileNode> {
 #[tauri::command]
 async fn load_file(path: String) -> Result<String, String> {
     
-    let p = Path::new(&path);
+    // Convert the string path to PathBuf
+    let p = PathBuf::from(&path);
 
-    let canonical_path = p.canonicalize().map_err(|_| "Invalid path")?;
+    // canonicalize
+    let actual_path = p.canonicalize().map_err(|_| format!("File not found or invalid path: {}", path))?;
 
-    std::fs::read_to_string(canonical_path).map_err(|e| e.to_string())
+    fs::read_to_string(actual_path).map_err(|e| e.to_string())
 
-    // tokio::fs::read_to_string(path)
-    //     .await
-    //     .map_err(|e| e.to_string())
 }
 
 // Saves content to a specified file path
 #[tauri::command]
 async fn save_file(_app: AppHandle, path: String, content: String) -> Result<(), String> {
-    tokio::fs::write(path, content)
-        .await
-        .map_err(|e| e.to_string())
+    
+    let p = PathBuf::from(&path);
+
+    if let Some(parent) = p.parent() {
+        parent.canonicalize().map_err(|_| "Invalid destination directory")?;
+    }
+
+    fs::write(p, content).map_err(|e| e.to_string())
+
 }
 
 #[tauri::command]
