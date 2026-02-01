@@ -55,36 +55,27 @@ html, body, #root {
 }
 
 @media print {
-
-  .sidebar, .editor-panel, .resize-handle, .sidebar-header {
-    display: none !important;
-  }
-
-  .app, .main-content, .resizable-container, .preview-panel {
+  /* 1. Reset ALL wrappers to be visible */
+  html, body, #root, .app, .main-content, .resizable-container, .preview-panel {
+    height: auto !important;
+    overflow: visible !important;
     display: block !important;
     position: static !important;
-    width: 100% !important;
-    height: auto !important;
-    overflow: visible !important;
   }
 
+  /* 2. Target your Preview.tsx container specifically */
   .preview {
-    padding: 0 !important;
-    margin: 0 !important;
-    width: 100% !important;
     height: auto !important;
     overflow: visible !important;
+    position: static !important;
     background: white !important;
     color: black !important;
+    padding: 0 !important;
+    display: block !important;
   }
 
-  h1, h2, h3, p {
-    color: black !important;
-    page-break-inside: avoid;
-  }
-
-  pre, code {
-    white-space: pre-wrap !important;
-    word-wrap: break-word !important;
+  /* 3. Hide the Sidebar and Editor panels */
+  .sidebar, .editor-panel, .resize-handle, .sidebar-header, .toolbar, .status-bar {
+    display: none !important;
   }
 }

@@ -34,29 +34,35 @@ const App: Component = () => {
     try { getCurrentWindow().setTitle(`${name}${flag} - Aqua`); } catch {}
   });
 
-  onMount(async() => {
+  onMount(() => {
 
-    console.log("App mounted, setting up menu listeners.");
+    let unlisteners: Array<() => void> = [];
+
+    const setupListeners = async () => {
+      
+      const u1 = await listen("menu-export-html", () => {
+        const previewEl = document.querySelector('.preview');
+        if (previewEl) {
+          exportToHtml(previewEl.innerHTML, "document");
+        }
+        else {
+          console.error("Preview element not found for export.");
+        }
+      });
+
+      const u2 = await listen("menu-print-pdf", () => {
+        const content = md();
+        printToPdf(content);
+      });
+
+      unlisteners.push(u1, u2);
+
+    };
+
+    setupListeners();
     
-    const unlistenHtml = await listen("menu-export-html", () => {
-      console.log("Export to HTML menu item clicked.");
-      const previewEl = document.querySelector('.preview');
-      if (previewEl) {
-        exportToHtml(previewEl.innerHTML, "document");
-      }
-      else {
-        console.error("Preview element not found for export.");
-      }
-    });
-
-    const unlistenPdf = await listen("menu-print-pdf", () => {
-      console.log("Print to PDF menu item clicked.");
-      printToPdf();
-    });
-
     onCleanup(() => {
-      unlistenHtml();
-      unlistenPdf();
+      unlisteners.forEach(u => u());
     });
 
   });
