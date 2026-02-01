@@ -2,10 +2,9 @@ import { onMount, createSignal, createEffect } from 'solid-js';
 
 // CodeMirror imports
 import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
-import { defaultKeymap, indentWithTab, undo, redo } from '@codemirror/commands';
+import { defaultKeymap, indentWithTab, undo, redo, history } from '@codemirror/commands';
 import { EditorView, keymap } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
-import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorState } from '@codemirror/state';
 
 // Tauri imports
@@ -53,12 +52,22 @@ const Editor = (props: EditorProps) => {
     const state = EditorState.create({
       doc: saved,
       extensions: [
-        keymap.of([...defaultKeymap, indentWithTab]),
-        markdown({
-          taskListCheckable: false,
-        }),
+        history(),
+
+        keymap.of([
+          ...defaultKeymap,
+          indentWithTab,
+          { key: 'Mod-z', run: undo },
+          { key: 'Mod-y', run: redo },
+          { key: 'Mod-Shift-z', run: redo, preventDefault: true },
+        ]),
+
+
+        // markdown({ taskListCheckable: false}),
+
         oceanTheme(),
         syntaxHighlighting(defaultHighlightStyle),
+
         EditorView.updateListener.of((up) => {
           if (up.docChanged) {
             const txt = up.state.doc.toString();
@@ -69,14 +78,21 @@ const Editor = (props: EditorProps) => {
             });
           }
         }),
+
         EditorView.domEventHandlers({
           scroll: throttle((event) => {
-            if (Date.now() - lastExternalScroll < 100) return;
+            
             const el = event.target as HTMLElement;
+            if(!el || !parentEl) return;
+
+            if(Date.now() - lastExternalScroll < 100) return;
+
             const pct = el.scrollTop / (el.scrollHeight - el.clientHeight);
             window.dispatchEvent(new CustomEvent('editor-scroll', { detail: pct }));
+            
           }, 50),
         }),
+
       ],
     });
 
