@@ -1,4 +1,4 @@
-import { createEffect, onMount } from 'solid-js';
+import { createEffect, createMemo, onMount } from 'solid-js';
 
 // Marked and Highlight.js imports
 import { Marked } from 'marked';

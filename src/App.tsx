@@ -1,5 +1,5 @@
 // solid-js
-import { Component, createSignal, createEffect, onMount, onCleanup } from "solid-js";
+import { Component, createSignal, createEffect, onMount, onCleanup, createMemo } from "solid-js";
 // Resizable import
 import Resizable from '@corvu/resizable';
 
@@ -19,19 +19,25 @@ import { fileState } from './store/fileState';
 import "./styles/main.css";
 // utils
 import { exportToHtml, printToPdf } from './utils/export.ts';
-// 
+// theme state store
 import { themeState } from './store/themeState.ts';
+// status bar
 import StatusBar from "./components/StatusBar.tsx";
+import { create } from "@tauri-apps/plugin-fs";
 
 const App: Component = () => {
   
   const [md, setMd] = createSignal("# Hello Aqua\nStart typing…");
+  
+  const [debouncedMd, setDebouncedMd] = createSignal(md());
+
+  createEffect(() => {
+  });
 
   // Update window title on file path or modified changeb
   createEffect(() => {
     const name = fileState.path()?.split(/[/\\]/).pop() || 'Untitled.md';
-    const flag = fileState.modified() ? ' ●' : '';
-    try { getCurrentWindow().setTitle(`${name}${flag} - Aqua`); } catch {}
+    try { getCurrentWindow().setTitle(`${name} - Aqua`); } catch (error) {console.error("Failed to set window title:", error);}
   });
 
   onMount(() => {
@@ -70,10 +76,19 @@ const App: Component = () => {
   // Handle file selection from sidebar
   const handleFileSelect = async (path: string) => {
 
-    const content = await invoke<string>('load_file', {path});
-    setMd(content);
-    fileState.setPath(path);
-    fileState.setModified(false);
+    try {
+
+      const content = await invoke<string>('load_file', {path});
+
+      setMd(content);
+
+      fileState.setPath(path);
+      fileState.setModified(false);
+
+    } catch (error) {
+      console.error("Error loading file:", error);
+      return;
+    }
 
   }
   

@@ -62,20 +62,19 @@ const Editor = (props: EditorProps) => {
           { key: 'Mod-Shift-z', run: redo, preventDefault: true },
         ]),
 
-
-        // markdown({ taskListCheckable: false}),
-
         oceanTheme(),
         syntaxHighlighting(defaultHighlightStyle),
 
         EditorView.updateListener.of((up) => {
           if (up.docChanged) {
             const txt = up.state.doc.toString();
+
             debounce(() => {
               saveDoc(txt);
               props.onChange?.(txt);
               fileState.setModified(true);
             });
+
           }
         }),
 
