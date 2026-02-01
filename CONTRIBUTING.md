@@ -34,4 +34,4 @@ To keep our CHANGELOG clean, we follow [Conventional Commits](https://www.conven
 5. Wait for a review! (Usually within 24-48 hours).
 
 ## 💡 Code of Conduct
-Be respectful, inclusive, and helpful. We are building this for students everywhere.
+Be respectful, and helpful. We are building this for people everywhere.
