@@ -13,6 +13,8 @@ import Editor from "./components/Editor.tsx";
 import Preview from "./components/Preview.tsx";
 import Sidebar from "./components/Sidebar.tsx";
 
+// file loading utility
+import { loadFileChunked } from "./utils/fileLoader.ts";
 // file state store
 import { fileState } from './store/fileState';
 // styles
@@ -28,11 +30,6 @@ import { create } from "@tauri-apps/plugin-fs";
 const App: Component = () => {
   
   const [md, setMd] = createSignal("# Hello Aqua\nStart typing…");
-  
-  const [debouncedMd, setDebouncedMd] = createSignal(md());
-
-  createEffect(() => {
-  });
 
   // Update window title on file path or modified changeb
   createEffect(() => {
@@ -77,11 +74,10 @@ const App: Component = () => {
   const handleFileSelect = async (path: string) => {
 
     try {
-
-      const content = await invoke<string>('load_file', {path});
-
+      
+      const content = await loadFileChunked(path);
+      
       setMd(content);
-
       fileState.setPath(path);
       fileState.setModified(false);
 

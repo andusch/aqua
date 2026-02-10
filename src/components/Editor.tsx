@@ -21,6 +21,9 @@ import { throttle } from 'lodash';
 // Import for ocean theme
 import { oceanTheme } from '../styles/themes/oceanTheme.ts';
 
+// File loading utility
+import { loadFileChunked } from '../utils/fileLoader.ts';
+
 interface EditorProps {
   value: string;
   onChange?: (text: string) => void;
@@ -115,15 +118,22 @@ const Editor = (props: EditorProps) => {
     // Open file menu listener
     const unlistenOpen = await listen('menu-open', async () => {
 
-      const file = await invoke<{path: string, content: string}>('open_file').catch(() => null);
+      const file = await invoke<{path: string, content: string}>('pick_file').catch(() => null);
       if (!file) return;
 
-      v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: file.content}});
+      try {
+        
+        const content = await loadFileChunked(file.path);
 
-      fileState.setPath(file.path);
-      fileState.setModified(false);
+        v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: content } });
 
-      props.onChange?.(file.content);
+        fileState.setPath(file.path);
+        fileState.setModified(false);
+        props.onChange?.(content);
+
+      } catch (error) {
+        console.error("Error loading file:", error);
+      }
 
     });
     unlisteners.push(unlistenOpen);

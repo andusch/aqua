@@ -1,11 +1,13 @@
 use std::fs::{self};
-use std::path::{Path, PathBuf};
+use tokio::fs::File;
 use std::sync::Mutex;
+use std::path::{Path, PathBuf};
 use tauri_plugin_dialog::DialogExt;
 use notify::{Watcher, RecursiveMode};
+use tokio::io::{AsyncReadExt, BufReader};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
-use tauri::{generate_context, generate_handler, AppHandle, Builder, Emitter, Manager};
+use tauri::{generate_context, generate_handler, AppHandle, Builder, Emitter, Manager, Window};
 
 #[derive(serde::Serialize, Clone)]
 struct FileNode {
@@ -27,8 +29,65 @@ struct OpenedFile {
     content: String,
 }
 
+#[derive(Clone, serde::Serialize)]
+struct FileChunk {
+    content: String,
+    is_last: bool,
+}
 
 struct WatcherState(Mutex<Option<notify::RecommendedWatcher>>);
+
+#[tauri::command]
+async fn pick_file(app: AppHandle) -> Result<Option<String>, String> {
+
+    let path = tokio::task::spawn_blocking(move || {
+        app.dialog()
+            .file()
+            .add_filter("Markdown", &["md"])
+            .blocking_pick_file()    
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    match path {
+        Some(p) => Ok(Some(p.to_string())),
+        None => Ok(None),
+    }
+
+}
+
+#[tauri::command]
+async fn read_file_chunked(window: Window, path: String) -> Result<(), String> {
+
+    let file = File::open(&path).await.map_err(|e| e.to_string())?;
+    let mut reader = BufReader::new(file);
+    let mut buffer = [0; 65536]; // 64KB buffer
+
+    loop {
+        
+        let bytes_read = reader.read(&mut buffer).await.map_err(|e| e.to_string())?;
+
+        // EOF
+        if bytes_read == 0 { 
+            window.emit("file-chunk", FileChunk {
+                content: "".to_string(),
+                is_last: true,
+            }).map_err(|e| e.to_string())?;
+            break;
+        }
+
+        let chunk_str = String::from_utf8_lossy(&buffer[..bytes_read]).to_string();
+
+        window.emit("file-chunk", FileChunk {
+            content: chunk_str,
+            is_last: false,
+        }).map_err(|e| e.to_string())?;
+
+    }
+
+    Ok(())
+
+}
 
 fn read_dir_recursive(path: &Path) -> Vec<FileNode> {
     let mut nodes = Vec::new();
@@ -324,7 +383,9 @@ pub fn run() {
             clipboard_read,
             load_file,
             open_folder_and_list_files,
-            get_directory_tree
+            get_directory_tree,
+            read_file_chunked,
+            pick_file,
         ])
         .run(generate_context!())
         .expect("error while running tauri application");
