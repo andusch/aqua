@@ -16,10 +16,17 @@ struct FileNode {
 }
 
 #[derive(serde::Serialize)]
+struct FolderResult {
+    path: String,
+    tree: Vec<FileNode>,
+}
+
+#[derive(serde::Serialize)]
 struct OpenedFile {
     path: String,
     content: String,
 }
+
 
 struct WatcherState(Mutex<Option<notify::RecommendedWatcher>>);
 
@@ -91,12 +98,6 @@ async fn save_file(_app: AppHandle, path: String, content: String) -> Result<(),
 
     fs::write(p, content).map_err(|e| e.to_string())
 
-}
-
-#[derive(serde::Serialize)]
-struct FolderResult {
-    path: String,
-    tree: Vec<FileNode>,
 }
 
 #[tauri::command]

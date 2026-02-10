@@ -4,9 +4,11 @@ import { createSignal, onCleanup, onMount, Show, For } from 'solid-js';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 // Folder Tree Nodes
-import { FileNode } from '../types';
+import {FileNode, FlatNode, flattenTree} from '../store/fileTreeTypes';
 // Theme Toggle Component
 import { ThemeToggle } from './ThemeToggle';
+
+import { createVirtualizer } from '@tanstack/solid-virtual';
 
 // Props
 interface SidebarProps {
@@ -60,7 +62,7 @@ const FileTreeItem = (props: {node: FileNode; onSelect: (p: string) => void; dep
 const Sidebar = (props: SidebarProps) => {
   const [fileTree, setFileTree] = createSignal<FileNode[]>([]);
   const [currentRoot, setCurrentRoot] = createSignal<string | null>(null);
-
+  const [expandedKeys, setExpandedKeys] = createSignal<Set<string>>(new Set());
   
   // Pick folder and generate tree
   const pickFolder = async () => {
@@ -75,6 +77,7 @@ const Sidebar = (props: SidebarProps) => {
     }
   };
 
+  // Refresh tree data from Rust
   const refreshTree = async () => {
 
     const path = currentRoot();
@@ -85,9 +88,7 @@ const Sidebar = (props: SidebarProps) => {
       const updatedTree = await invoke<FileNode[]>('get_directory_tree', {path});
       setFileTree(updatedTree);
     } catch (err){
-
       console.error("Failed to refresh tree:", err);
-
     }
 
   };

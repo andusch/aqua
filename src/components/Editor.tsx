@@ -27,10 +27,12 @@ interface EditorProps {
 }
 
 const Editor = (props: EditorProps) => {
+
   let parentEl: HTMLDivElement;
   const [view, setView] = createSignal<EditorView>();
 
   createEffect(() => {
+
     const v = view();
     if(!v) return;
 
@@ -52,8 +54,9 @@ const Editor = (props: EditorProps) => {
     const state = EditorState.create({
       doc: saved,
       extensions: [
-        history(),
 
+        history(),
+        
         keymap.of([
           ...defaultKeymap,
           indentWithTab,
