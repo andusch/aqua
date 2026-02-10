@@ -1,6 +1,10 @@
+use std::panic;
+use chrono::Local;
+use std::io::Write;
 use std::fs::{self};
 use tokio::fs::File;
 use std::sync::Mutex;
+use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 use tauri_plugin_dialog::DialogExt;
 use notify::{Watcher, RecursiveMode};
@@ -282,9 +286,54 @@ async fn clipboard_read(app: AppHandle) -> Result<String, String> {
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn log_crash(message: String){
+    if let Ok(mut file) = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("crash.log") 
+    {
+        let _ = writeln!(
+            file,
+            "[{}][UI_ERROR] {}",
+            Local::now().format("%Y-%m-%d %H:%M:%S"),
+            message
+        );
+    }
+}
+
 // Sets up the Tauri application with menus and command handlers
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+
+    panic::set_hook(Box::new(|info| {
+
+        let location = info.location().unwrap_or_else(|| panic!("Panic location unknown"));
+        let msg = match info.payload().downcast_ref::<&str>() {
+            Some(s) => *s,
+            None => match info.payload().downcast_ref::<String>() {
+                Some(s) => &s[..],
+                None => "Box<Any>",
+            }
+        };
+
+        if let Ok(mut file) = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("crash.log") 
+        {
+            let _ = writeln!(
+                file,
+                "[{}][PANIC] {} at {}:{}",
+                Local::now().format("%Y-%m-%d %H:%M:%S"),
+                msg,
+                location.file(),
+                location.line(),
+            );
+        }
+
+    }));
+
     Builder::default()
         .manage(WatcherState(Mutex::new(None)))
         .plugin(tauri_plugin_dialog::init())
@@ -386,6 +435,7 @@ pub fn run() {
             get_directory_tree,
             read_file_chunked,
             pick_file,
+            log_crash,
         ])
         .run(generate_context!())
         .expect("error while running tauri application");

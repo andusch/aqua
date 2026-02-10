@@ -62,6 +62,18 @@ const App: Component = () => {
 
     };
 
+    // global crash reporting
+    window.addEventListener('unhandledrejection', (event) => {
+      const errorMsg = `[JS-UI] Unhandled Promise Rejection: ${event.reason}`;
+      invoke('log_crash', { message: errorMsg }).catch(() => {});
+    })
+
+    window.onerror = (msg, url, line, col, error) => {
+      const errorMsg = `[JS-UI] Error: ${msg} at ${url}:${line}:${col}`;
+      invoke('log_crash', { message: errorMsg }).catch(() => {});
+      return false;
+    };
+
     setupListeners();
     
     onCleanup(() => {
