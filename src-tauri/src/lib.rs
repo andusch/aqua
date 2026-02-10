@@ -93,8 +93,14 @@ async fn save_file(_app: AppHandle, path: String, content: String) -> Result<(),
 
 }
 
+#[derive(serde::Serialize)]
+struct FolderResult {
+    path: String,
+    tree: Vec<FileNode>,
+}
+
 #[tauri::command]
-async fn open_folder_and_list_files(app: AppHandle) -> Result<Vec<FileNode>, String> {
+async fn open_folder_and_list_files(app: AppHandle) -> Result<FolderResult, String> {
     
     let app_for_dialog = app.clone();
     
@@ -109,7 +115,7 @@ async fn open_folder_and_list_files(app: AppHandle) -> Result<Vec<FileNode>, Str
     match folder_path {
         Some(path) => {
             let path_string = path.to_string();
-            let path_buf = std::path::PathBuf::from(path_string.clone());
+            let path_buf = std::path::PathBuf::from(&path_string);
 
             // Set-up Watcher
             let app_handle = app.clone();
@@ -129,11 +135,21 @@ async fn open_folder_and_list_files(app: AppHandle) -> Result<Vec<FileNode>, Str
             let mut managed_watch = state.0.lock().unwrap();
             *managed_watch = Some(watcher);
 
-            // Generate Tree
             let tree = read_dir_recursive(&path_buf);
-            Ok(tree)
+
+            Ok(FolderResult { path: path_string, tree: tree })
         }
         None => Err("cancelled".into()),
+    }
+}
+
+#[tauri::command]
+fn get_directory_tree(path: String) -> Result<Vec<FileNode>, String> {
+    let p = Path::new(&path);
+    if p.exists() && p.is_dir() {
+        Ok(read_dir_recursive(p))
+    } else {
+        Err("Invalid directory path".into())
     }
 }
 
@@ -307,6 +323,7 @@ pub fn run() {
             clipboard_read,
             load_file,
             open_folder_and_list_files,
+            get_directory_tree
         ])
         .run(generate_context!())
         .expect("error while running tauri application");
