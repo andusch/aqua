@@ -1,5 +1,5 @@
 // solid-js
-import { Component, createSignal, createEffect, onMount, onCleanup } from "solid-js";
+import { Component, createSignal, createEffect, onMount, onCleanup, createMemo } from "solid-js";
 // Resizable import
 import Resizable from '@corvu/resizable';
 
@@ -13,15 +13,19 @@ import Editor from "./components/Editor.tsx";
 import Preview from "./components/Preview.tsx";
 import Sidebar from "./components/Sidebar.tsx";
 
+// file loading utility
+import { loadFileChunked } from "./utils/fileLoader.ts";
 // file state store
 import { fileState } from './store/fileState';
 // styles
 import "./styles/main.css";
 // utils
 import { exportToHtml, printToPdf } from './utils/export.ts';
-// 
+// theme state store
 import { themeState } from './store/themeState.ts';
+// status bar
 import StatusBar from "./components/StatusBar.tsx";
+import { create } from "@tauri-apps/plugin-fs";
 
 const App: Component = () => {
   
@@ -30,8 +34,7 @@ const App: Component = () => {
   // Update window title on file path or modified changeb
   createEffect(() => {
     const name = fileState.path()?.split(/[/\\]/).pop() || 'Untitled.md';
-    const flag = fileState.modified() ? ' ●' : '';
-    try { getCurrentWindow().setTitle(`${name}${flag} - Aqua`); } catch {}
+    try { getCurrentWindow().setTitle(`${name} - Aqua`); } catch (error) {console.error("Failed to set window title:", error);}
   });
 
   onMount(() => {
@@ -59,6 +62,18 @@ const App: Component = () => {
 
     };
 
+    // global crash reporting
+    window.addEventListener('unhandledrejection', (event) => {
+      const errorMsg = `[JS-UI] Unhandled Promise Rejection: ${event.reason}`;
+      invoke('log_crash', { message: errorMsg }).catch(() => {});
+    })
+
+    window.onerror = (msg, url, line, col, error) => {
+      const errorMsg = `[JS-UI] Error: ${msg} at ${url}:${line}:${col}`;
+      invoke('log_crash', { message: errorMsg }).catch(() => {});
+      return false;
+    };
+
     setupListeners();
     
     onCleanup(() => {
@@ -70,10 +85,18 @@ const App: Component = () => {
   // Handle file selection from sidebar
   const handleFileSelect = async (path: string) => {
 
-    const content = await invoke<string>('load_file', {path});
-    setMd(content);
-    fileState.setPath(path);
-    fileState.setModified(false);
+    try {
+      
+      const content = await loadFileChunked(path);
+      
+      setMd(content);
+      fileState.setPath(path);
+      fileState.setModified(false);
+
+    } catch (error) {
+      console.error("Error loading file:", error);
+      return;
+    }
 
   }
   

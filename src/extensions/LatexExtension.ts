@@ -16,7 +16,7 @@ export const latexExtension: TokenizerAndRendererExtension = {
         displayMode: true,
       };
     }
-
+    // 2. Check for Inline ($ ... $)
     const inlineMatch = /^\$((?:[^\$\\]|\\.)+?)\$/.exec(src);
     if (inlineMatch) {
       return {

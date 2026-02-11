@@ -3,7 +3,8 @@ export const checkboxExtension: any = {
   level: 'inline',
   start(src: string) { return src.match(/\[([ xX])\]/)?.index; },
   tokenizer(src: string) {
-    const rule = /^\[([ xX])\]/; // Match only at start of current token
+    // checked checkbox
+    const rule = /^\[([ xX])\]/;
     const match = rule.exec(src);
     if (match) {
       return {
@@ -12,10 +13,21 @@ export const checkboxExtension: any = {
         checked: match[1].toLowerCase() === 'x',
       };
     }
+
+    // unchecked checkbox
+    const uncheckedRule = /^\[\]/;
+    const uncheckedMatch = uncheckedRule.exec(src);
+    if (uncheckedMatch) {
+      return {
+        type: 'checkbox',
+        raw: uncheckedMatch[0],
+        checked: false,
+      };
+    }
+
   },
   renderer(token: any) {
-    // Note the added spacing/display block to prevent the "inline mess"
-    const checked = token.checked ? 'checked' : '';
+    const checked = token.checked ? 'checked' : 'unchecked';
     return `<input type="checkbox" disabled ${checked} class="task-checkbox">`;
   },
 };

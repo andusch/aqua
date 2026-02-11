@@ -1,11 +1,17 @@
+use std::panic;
+use chrono::Local;
+use std::io::Write;
 use std::fs::{self};
-use std::path::Path;
+use tokio::fs::File;
 use std::sync::Mutex;
+use std::fs::OpenOptions;
+use std::path::{Path, PathBuf};
 use tauri_plugin_dialog::DialogExt;
 use notify::{Watcher, RecursiveMode};
+use tokio::io::{AsyncReadExt, BufReader};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
-use tauri::{generate_context, generate_handler, AppHandle, Builder, Emitter, Manager};
+use tauri::{generate_context, generate_handler, AppHandle, Builder, Emitter, Manager, Window};
 
 #[derive(serde::Serialize, Clone)]
 struct FileNode {
@@ -16,12 +22,76 @@ struct FileNode {
 }
 
 #[derive(serde::Serialize)]
+struct FolderResult {
+    path: String,
+    tree: Vec<FileNode>,
+}
+
+#[derive(serde::Serialize)]
 struct OpenedFile {
     path: String,
     content: String,
 }
 
+#[derive(Clone, serde::Serialize)]
+struct FileChunk {
+    content: String,
+    is_last: bool,
+}
+
 struct WatcherState(Mutex<Option<notify::RecommendedWatcher>>);
+
+#[tauri::command]
+async fn pick_file(app: AppHandle) -> Result<Option<String>, String> {
+
+    let path = tokio::task::spawn_blocking(move || {
+        app.dialog()
+            .file()
+            .add_filter("Markdown", &["md"])
+            .blocking_pick_file()    
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    match path {
+        Some(p) => Ok(Some(p.to_string())),
+        None => Ok(None),
+    }
+
+}
+
+#[tauri::command]
+async fn read_file_chunked(window: Window, path: String) -> Result<(), String> {
+
+    let file = File::open(&path).await.map_err(|e| e.to_string())?;
+    let mut reader = BufReader::new(file);
+    let mut buffer = [0; 65536]; // 64KB buffer
+
+    loop {
+        
+        let bytes_read = reader.read(&mut buffer).await.map_err(|e| e.to_string())?;
+
+        // EOF
+        if bytes_read == 0 { 
+            window.emit("file-chunk", FileChunk {
+                content: "".to_string(),
+                is_last: true,
+            }).map_err(|e| e.to_string())?;
+            break;
+        }
+
+        let chunk_str = String::from_utf8_lossy(&buffer[..bytes_read]).to_string();
+
+        window.emit("file-chunk", FileChunk {
+            content: chunk_str,
+            is_last: false,
+        }).map_err(|e| e.to_string())?;
+
+    }
+
+    Ok(())
+
+}
 
 fn read_dir_recursive(path: &Path) -> Vec<FileNode> {
     let mut nodes = Vec::new();
@@ -69,27 +139,32 @@ fn read_dir_recursive(path: &Path) -> Vec<FileNode> {
 #[tauri::command]
 async fn load_file(path: String) -> Result<String, String> {
     
-    let p = Path::new(&path);
+    // Convert the string path to PathBuf
+    let p = PathBuf::from(&path);
 
-    let canonical_path = p.canonicalize().map_err(|_| "Invalid path")?;
+    // canonicalize
+    let actual_path = p.canonicalize().map_err(|_| format!("File not found or invalid path: {}", path))?;
 
-    std::fs::read_to_string(canonical_path).map_err(|e| e.to_string())
+    fs::read_to_string(actual_path).map_err(|e| e.to_string())
 
-    // tokio::fs::read_to_string(path)
-    //     .await
-    //     .map_err(|e| e.to_string())
 }
 
 // Saves content to a specified file path
 #[tauri::command]
 async fn save_file(_app: AppHandle, path: String, content: String) -> Result<(), String> {
-    tokio::fs::write(path, content)
-        .await
-        .map_err(|e| e.to_string())
+    
+    let p = PathBuf::from(&path);
+
+    if let Some(parent) = p.parent() {
+        parent.canonicalize().map_err(|_| "Invalid destination directory")?;
+    }
+
+    fs::write(p, content).map_err(|e| e.to_string())
+
 }
 
 #[tauri::command]
-async fn open_folder_and_list_files(app: AppHandle) -> Result<Vec<FileNode>, String> {
+async fn open_folder_and_list_files(app: AppHandle) -> Result<FolderResult, String> {
     
     let app_for_dialog = app.clone();
     
@@ -104,7 +179,7 @@ async fn open_folder_and_list_files(app: AppHandle) -> Result<Vec<FileNode>, Str
     match folder_path {
         Some(path) => {
             let path_string = path.to_string();
-            let path_buf = std::path::PathBuf::from(path_string.clone());
+            let path_buf = std::path::PathBuf::from(&path_string);
 
             // Set-up Watcher
             let app_handle = app.clone();
@@ -124,11 +199,21 @@ async fn open_folder_and_list_files(app: AppHandle) -> Result<Vec<FileNode>, Str
             let mut managed_watch = state.0.lock().unwrap();
             *managed_watch = Some(watcher);
 
-            // Generate Tree
             let tree = read_dir_recursive(&path_buf);
-            Ok(tree)
+
+            Ok(FolderResult { path: path_string, tree: tree })
         }
         None => Err("cancelled".into()),
+    }
+}
+
+#[tauri::command]
+fn get_directory_tree(path: String) -> Result<Vec<FileNode>, String> {
+    let p = Path::new(&path);
+    if p.exists() && p.is_dir() {
+        Ok(read_dir_recursive(p))
+    } else {
+        Err("Invalid directory path".into())
     }
 }
 
@@ -201,9 +286,54 @@ async fn clipboard_read(app: AppHandle) -> Result<String, String> {
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn log_crash(message: String){
+    if let Ok(mut file) = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("crash.log") 
+    {
+        let _ = writeln!(
+            file,
+            "[{}][UI_ERROR] {}",
+            Local::now().format("%Y-%m-%d %H:%M:%S"),
+            message
+        );
+    }
+}
+
 // Sets up the Tauri application with menus and command handlers
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+
+    panic::set_hook(Box::new(|info| {
+
+        let location = info.location().unwrap_or_else(|| panic!("Panic location unknown"));
+        let msg = match info.payload().downcast_ref::<&str>() {
+            Some(s) => *s,
+            None => match info.payload().downcast_ref::<String>() {
+                Some(s) => &s[..],
+                None => "Box<Any>",
+            }
+        };
+
+        if let Ok(mut file) = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("crash.log") 
+        {
+            let _ = writeln!(
+                file,
+                "[{}][PANIC] {} at {}:{}",
+                Local::now().format("%Y-%m-%d %H:%M:%S"),
+                msg,
+                location.file(),
+                location.line(),
+            );
+        }
+
+    }));
+
     Builder::default()
         .manage(WatcherState(Mutex::new(None)))
         .plugin(tauri_plugin_dialog::init())
@@ -302,6 +432,10 @@ pub fn run() {
             clipboard_read,
             load_file,
             open_folder_and_list_files,
+            get_directory_tree,
+            read_file_chunked,
+            pick_file,
+            log_crash,
         ])
         .run(generate_context!())
         .expect("error while running tauri application");

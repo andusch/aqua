@@ -4,9 +4,11 @@ import { createSignal, onCleanup, onMount, Show, For } from 'solid-js';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 // Folder Tree Nodes
-import { FileNode } from '../types';
+import {FileNode, FlatNode, flattenTree} from '../store/fileTreeTypes';
 // Theme Toggle Component
 import { ThemeToggle } from './ThemeToggle';
+
+import { createVirtualizer } from '@tanstack/solid-virtual';
 
 // Props
 interface SidebarProps {
@@ -59,25 +61,43 @@ const FileTreeItem = (props: {node: FileNode; onSelect: (p: string) => void; dep
 // Component
 const Sidebar = (props: SidebarProps) => {
   const [fileTree, setFileTree] = createSignal<FileNode[]>([]);
+  const [currentRoot, setCurrentRoot] = createSignal<string | null>(null);
+  const [expandedKeys, setExpandedKeys] = createSignal<Set<string>>(new Set());
   
   // Pick folder and generate tree
   const pickFolder = async () => {
     try {
-      const tree = await invoke<FileNode[]>('open_folder_and_list_files');
-      if (tree) {
-        setFileTree(tree);
+      const result = await invoke<{path: string, tree: FileNode[]}>('open_folder_and_list_files');
+      if (result) {
+        setFileTree(result.tree);
+        setCurrentRoot(result.path);
       }
     } catch (err) {
       if (err !== "cancelled") console.error("Error:", err);
     }
   };
 
+  // Refresh tree data from Rust
+  const refreshTree = async () => {
+
+    const path = currentRoot();
+    
+    if (!path) return;
+
+    try {
+      const updatedTree = await invoke<FileNode[]>('get_directory_tree', {path});
+      setFileTree(updatedTree);
+    } catch (err){
+      console.error("Failed to refresh tree:", err);
+    }
+
+  };
+
   // Listen for refresh events from Rust watcher
   onMount(async () => {
     const unListen = await listen('refresh-files', async () => {
-        // In a real app, we'd invoke a 'refresh_tree' command here
-        // For now, we rely on the user re-opening or we can add that command later
-        console.log("File system changed - reload logic pending");
+        console.log("File system change detected!");
+        refreshTree();
     });
     onCleanup(() => unListen());
   });

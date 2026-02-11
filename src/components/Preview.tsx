@@ -1,4 +1,4 @@
-import { createEffect, onMount } from 'solid-js';
+import { createEffect, createMemo, onMount } from 'solid-js';
 
 // Marked and Highlight.js imports
 import { Marked } from 'marked';
@@ -52,9 +52,11 @@ interface PreviewProps {
 }
 
 const Preview = (props: PreviewProps) => {
+
   let containerRef: HTMLDivElement | undefined;
   let lastExternalScroll = 0;
 
+  // Throttled scroll handler to sync preview scroll with editor
   const handlePreviewScroll = throttle(() => {
     if (Date.now() - lastExternalScroll < 100 || !containerRef) return;
     const pct = containerRef.scrollTop / (containerRef.scrollHeight - containerRef.clientHeight);
@@ -77,6 +79,7 @@ const Preview = (props: PreviewProps) => {
     containerRef.querySelectorAll('pre code').forEach((b) => hljs.highlightElement(b as HTMLElement));
   });
 
+  // Memoized function to render markdown to sanitized HTML
   const renderMarkdown = (markdown: string) => {
     const html = marked.parse(markdown) as string;
   
