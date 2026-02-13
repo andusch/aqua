@@ -1,0 +1,10 @@
+[2026-02-13 15:58:41][UI_ERROR] [JS-UI] Error: TypeError: this.options.extensions.renderers[i.type].call is not a function. (In 'this.options.extensions.renderers[i.type].call({ parser: this }, i)', 'this.options.extensions.renderers[i.type].call' is undefined)
+Please report this to https://github.com/markedjs/marked. at http://localhost:1420/node_modules/.vite/deps/chunk-NKR2X3CR.js?v=fa208533:1027:24
+[2026-02-13 15:58:42][UI_ERROR] [JS-UI] Error: TypeError: this.options.extensions.renderers[i.type].call is not a function. (In 'this.options.extensions.renderers[i.type].call({ parser: this }, i)', 'this.options.extensions.renderers[i.type].call' is undefined)
+Please report this to https://github.com/markedjs/marked. at http://localhost:1420/node_modules/.vite/deps/chunk-NKR2X3CR.js?v=fa208533:1027:24
+[2026-02-13 15:58:43][UI_ERROR] [JS-UI] Error: TypeError: this.options.extensions.renderers[i.type].call is not a function. (In 'this.options.extensions.renderers[i.type].call({ parser: this }, i)', 'this.options.extensions.renderers[i.type].call' is undefined)
+Please report this to https://github.com/markedjs/marked. at http://localhost:1420/node_modules/.vite/deps/chunk-NKR2X3CR.js?v=fa208533:1027:24
+[2026-02-13 15:58:49][UI_ERROR] [JS-UI] Error: TypeError: this.options.extensions.renderers[i.type].call is not a function. (In 'this.options.extensions.renderers[i.type].call({ parser: this }, i)', 'this.options.extensions.renderers[i.type].call' is undefined)
+Please report this to https://github.com/markedjs/marked. at http://localhost:1420/node_modules/.vite/deps/chunk-NKR2X3CR.js?v=fa208533:1027:24
+[2026-02-13 16:08:00][UI_ERROR] [JS-UI] Error: ReferenceError: Can't find variable: openExternal at http://localhost:1420/src/components/Preview.tsx:28:19
+[2026-02-13 16:08:26][UI_ERROR] [JS-UI] Error: ReferenceError: Can't find variable: openExternal at http://localhost:1420/src/components/Preview.tsx:28:19

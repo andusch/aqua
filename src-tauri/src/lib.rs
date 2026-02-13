@@ -340,7 +340,9 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_shell::init())
         .setup(|app| {
+
             let file_menu = Submenu::with_items(
                 app,
                 "File",
@@ -405,6 +407,7 @@ pub fn run() {
             )?;
 
             app.set_menu(Menu::with_items(app, &[&file_menu, &edit_menu])?)?;
+
             Ok(())
         })
         .on_menu_event(|app, event| {

@@ -5,8 +5,9 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "opener:default",
+    "core:webview:allow-print",
     "core:window:allow-set-title",
+    "opener:default",
     "clipboard-manager:default",
     "clipboard-manager:allow-write-text",
     "clipboard-manager:allow-read-text",
@@ -21,7 +22,8 @@
     "fs:allow-write-text-file",
     "fs:allow-read-dir",
     "fs:allow-exists",
-    "core:webview:allow-print",
+    "shell:default",
+    "shell:allow-open",
     {
       "identifier": "fs:allow-exists",
       "allow": [{ "path": "$DOCUMENT/**" }]
