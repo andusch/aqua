@@ -1,5 +1,5 @@
 // SolidJS imports
-import { createSignal, onCleanup, onMount, Show, For } from 'solid-js';
+import { createSignal, onCleanup, onMount, Show, For, createMemo } from 'solid-js';
 // Tauri imports
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -15,47 +15,35 @@ interface SidebarProps {
   onFileSelect: (path: string) => void;
 }
 
-const FileTreeItem = (props: {node: FileNode; onSelect: (p: string) => void; depth: number}) => {
+const ITEM_HEIGHT = 30; // Height of each file tree item in pixels
 
-  const [expanded, setExpanded] = createSignal(false);
-
+const VirtualizedFileTreeItem = (props: {
+  flatNode: FlatNode;
+  onSelect: (p: string) => void;
+  isExpanded: boolean;
+  onToggle: (path: string) => void;
+}) => {
   const toggle = (e: MouseEvent) => {
     e.stopPropagation();
-    if (props.node.is_dir) {
-      setExpanded(!expanded());
+    if (props.flatNode.isDir) {
+      props.onToggle(props.flatNode.id);
     } else {
-      props.onSelect(props.node.path);
+      props.onSelect(props.flatNode.id);
     }
   };
 
   return (
-    <div>
-      <div
-        class="file-item"
-        onClick={toggle}
-        style={{ "padding-left": `${props.depth * 12 + 12}px` }}
-      >
-        <span class='icon'>
-          {props.node.is_dir ? (expanded() ? '📂' : '📁') : '📄'}
-        </span>
-        <span class="name">{props.node.name}</span>
-      </div>
-
-      <Show when={props.node.is_dir && expanded() && props.node.children}>
-        <For each={props.node.children}>
-          {(child) => (
-            <FileTreeItem 
-              node={child} 
-              onSelect={props.onSelect} 
-              depth={props.depth + 1} 
-            />
-          )}
-        </For>
-      </Show>
-
+    <div
+      class="file-item"
+      onClick={toggle}
+      style={{ "padding-left": `${props.flatNode.depth * 12 + 12}px`, height: `${ITEM_HEIGHT}px`, "line-height": `${ITEM_HEIGHT}px` }}
+    >
+      <span class='icon'>
+        {props.flatNode.isDir ? (props.isExpanded ? '📂' : '📁') : '📄'}
+      </span>
+      <span class="name">{props.flatNode.name}</span>
     </div>
   );
-
 };
 
 // Component
@@ -63,6 +51,45 @@ const Sidebar = (props: SidebarProps) => {
   const [fileTree, setFileTree] = createSignal<FileNode[]>([]);
   const [currentRoot, setCurrentRoot] = createSignal<string | null>(null);
   const [expandedKeys, setExpandedKeys] = createSignal<Set<string>>(new Set());
+  const [containerRef, setContainerRef] = createSignal<HTMLDivElement | undefined>(undefined);
+  
+  // Create a memoized flattened tree that updates whenever fileTree or expandedKeys change
+  const flattenedTree = createMemo(() => {
+    return flattenTree(fileTree(), expandedKeys());
+  });
+
+  // Virtualizer setup
+  const virtualizer = createMemo(() => {
+    const container = containerRef();
+    if (!container) return null;
+    return createVirtualizer({
+      count: flattenedTree().length,
+      getScrollElement: () => container,
+      estimateSize: () => ITEM_HEIGHT,
+      overscan: 10, // Render 10 extra items above and below viewport for smoother scrolling
+    });
+  });
+
+  const virtualItems = createMemo(() => {
+    return virtualizer()?.getVirtualItems() ?? [];
+  });
+
+  const totalSize = createMemo(() => {
+    return virtualizer()?.getTotalSize() ?? 0;
+  });
+
+  // Toggle folder expansion
+  const toggleExpanded = (path: string) => {
+    setExpandedKeys((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(path)) {
+        newSet.delete(path);
+      } else {
+        newSet.add(path);
+      }
+      return newSet;
+    });
+  };
   
   // Pick folder and generate tree
   const pickFolder = async () => {
@@ -71,6 +98,7 @@ const Sidebar = (props: SidebarProps) => {
       if (result) {
         setFileTree(result.tree);
         setCurrentRoot(result.path);
+        setExpandedKeys(new Set<string>()); // Reset expanded keys when opening new folder
       }
     } catch (err) {
       if (err !== "cancelled") console.error("Error:", err);
@@ -110,10 +138,30 @@ const Sidebar = (props: SidebarProps) => {
         <button onClick={pickFolder} class="btn-open">Open Project</button>
       </div>
       
-      <div class="file-tree">
-        <For each={fileTree()}>
-          {(node) => <FileTreeItem node={node} onSelect={props.onFileSelect} depth={0} />}
-        </For>
+      <div class="file-tree" ref={setContainerRef}>
+        <div style={{ height: `${totalSize()}px` }}>
+          <For each={virtualItems()}>
+            {(virtualItem) => {
+              const flatNode = flattenedTree()[virtualItem.index];
+              return (
+                <div
+                  style={{
+                    transform: `translateY(${virtualItem.start}px)`,
+                    position: 'absolute',
+                    width: '100%',
+                  }}
+                >
+                  <VirtualizedFileTreeItem
+                    flatNode={flatNode}
+                    onSelect={props.onFileSelect}
+                    isExpanded={expandedKeys().has(flatNode.id)}
+                    onToggle={toggleExpanded}
+                  />
+                </div>
+              );
+            }}
+          </For>
+        </div>
         <Show when={fileTree().length === 0}>
             <div class="empty-state">No folder open</div>
         </Show>

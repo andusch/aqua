@@ -13,6 +13,8 @@
 .file-tree {
   flex: 1;
   overflow-y: auto;
+  position: relative;
+  contain: layout style paint;
 }
 
 .file-item {
