@@ -3,4 +3,5 @@ dist
 
 # Secret
 .env
-SECRET.env
+
+mcp.json

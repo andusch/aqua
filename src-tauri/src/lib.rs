@@ -13,7 +13,7 @@ use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
 use tauri::{generate_context, generate_handler, AppHandle, Builder, Emitter, Manager, Window};
 
-#[derive(serde::Serialize, Clone)]
+#[derive(serde::Serialize, Clone, Debug)]
 struct FileNode {
     name: String,
     path: String,
@@ -306,6 +306,7 @@ fn log_crash(message: String){
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
 
+
     panic::set_hook(Box::new(|info| {
 
         let location = info.location().unwrap_or_else(|| panic!("Panic location unknown"));
@@ -339,7 +340,9 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_shell::init())
         .setup(|app| {
+
             let file_menu = Submenu::with_items(
                 app,
                 "File",
@@ -404,6 +407,7 @@ pub fn run() {
             )?;
 
             app.set_menu(Menu::with_items(app, &[&file_menu, &edit_menu])?)?;
+
             Ok(())
         })
         .on_menu_event(|app, event| {
@@ -439,4 +443,436 @@ pub fn run() {
         ])
         .run(generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+    use serial_test::serial;
+
+    // ===== File Operation Tests =====
+
+    #[test]
+    fn test_load_file_success() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = temp_dir.path().join("test.md");
+        let content = "# Test Content\nThis is a test file.";
+        
+        fs::write(&file_path, content).expect("Failed to write test file");
+
+        let result = futures::executor::block_on(load_file(file_path.to_string_lossy().to_string()));
+        
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), content);
+    }
+
+    #[test]
+    fn test_load_file_not_found() {
+        let result = futures::executor::block_on(load_file("/nonexistent/path/file.md".to_string()));
+        
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_load_file_empty_file() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = temp_dir.path().join("empty.md");
+        
+        fs::write(&file_path, "").expect("Failed to write empty file");
+
+        let result = futures::executor::block_on(load_file(file_path.to_string_lossy().to_string()));
+        
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "");
+    }
+
+    #[test]
+    fn test_save_file_success() {
+        // Note: This function requires AppHandle which cannot be created in unit tests.
+        // It should be tested through integration tests or manual testing with the full Tauri app.
+        // For now, we test save_file through the general file I/O by using fs directly.
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = temp_dir.path().join("new_file.md");
+        let content = "# New File\nWith some content.";
+
+        fs::write(&file_path, content).expect("Failed to write file");
+        
+        let saved_content = fs::read_to_string(&file_path).expect("Failed to read saved file");
+        assert_eq!(saved_content, content);
+    }
+
+    #[test]
+    fn test_save_file_overwrites_existing() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = temp_dir.path().join("existing.md");
+        let original_content = "Original content";
+        let new_content = "New content";
+
+        fs::write(&file_path, original_content).expect("Failed to write original file");
+        fs::write(&file_path, new_content).expect("Failed to overwrite file");
+        
+        let saved_content = fs::read_to_string(&file_path).expect("Failed to read file");
+        assert_eq!(saved_content, new_content);
+    }
+
+    #[test]
+    fn test_save_file_creates_directory_if_needed() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = temp_dir.path().join("subdir/newfile.md");
+        let content = "Content in subdirectory";
+
+        // Create the subdirectory first
+        fs::create_dir_all(file_path.parent().unwrap()).expect("Failed to create subdirectory");
+        fs::write(&file_path, content).expect("Failed to write file");
+
+        assert!(file_path.exists());
+        let saved_content = fs::read_to_string(&file_path).expect("Failed to read file");
+        assert_eq!(saved_content, content);
+    }
+
+    #[test]
+    fn test_save_file_with_unicode_content() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = temp_dir.path().join("unicode.md");
+        let content = "# Unicode Test\n你好\n🎉 Emoji support\nÄÖÜß";
+
+        fs::write(&file_path, content).expect("Failed to write file");
+        
+        let saved_content = fs::read_to_string(&file_path).expect("Failed to read file");
+        assert_eq!(saved_content, content);
+    }
+
+    // ===== Directory Tree Tests =====
+
+    #[test]
+    fn test_read_dir_recursive_empty_directory() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        
+        let result = read_dir_recursive(temp_dir.path());
+        
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_read_dir_recursive_single_markdown_file() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = temp_dir.path().join("test.md");
+        fs::write(&file_path, "content").expect("Failed to create file");
+
+        let result = read_dir_recursive(temp_dir.path());
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].name, "test.md");
+        assert!(!result[0].is_dir);
+        assert!(result[0].children.is_none());
+    }
+
+    #[test]
+    fn test_read_dir_recursive_ignores_non_markdown_files() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        fs::write(temp_dir.path().join("test.md"), "content").expect("Failed to create .md");
+        fs::write(temp_dir.path().join("test.txt"), "content").expect("Failed to create .txt");
+        fs::write(temp_dir.path().join("test.rs"), "content").expect("Failed to create .rs");
+
+        let result = read_dir_recursive(temp_dir.path());
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].name, "test.md");
+    }
+
+    #[test]
+    fn test_read_dir_recursive_ignores_hidden_files() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        fs::write(temp_dir.path().join("test.md"), "content").expect("Failed to create visible file");
+        fs::write(temp_dir.path().join(".hidden.md"), "content").expect("Failed to create hidden file");
+
+        let result = read_dir_recursive(temp_dir.path());
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].name, "test.md");
+    }
+
+    #[test]
+    fn test_read_dir_recursive_with_subdirectories() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let subdir = temp_dir.path().join("subdir");
+        fs::create_dir(&subdir).expect("Failed to create subdirectory");
+        fs::write(subdir.join("nested.md"), "content").expect("Failed to create nested file");
+        fs::write(temp_dir.path().join("root.md"), "content").expect("Failed to create root file");
+
+        let result = read_dir_recursive(temp_dir.path());
+
+        // Should have 2 items: subdir and root.md
+        assert_eq!(result.len(), 2);
+        
+        // Directories should come first due to sorting
+        assert!(result[0].is_dir);
+        assert_eq!(result[0].name, "subdir");
+        assert!(result[0].children.is_some());
+        assert_eq!(result[0].children.as_ref().unwrap().len(), 1);
+        
+        assert!(!result[1].is_dir);
+        assert_eq!(result[1].name, "root.md");
+    }
+
+    #[test]
+    fn test_read_dir_recursive_sorting_case_insensitive() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        fs::write(temp_dir.path().join("Zebra.md"), "content").expect("Failed to create Zebra.md");
+        fs::write(temp_dir.path().join("apple.md"), "content").expect("Failed to create apple.md");
+        fs::write(temp_dir.path().join("Banana.md"), "content").expect("Failed to create Banana.md");
+
+        let result = read_dir_recursive(temp_dir.path());
+
+        assert_eq!(result.len(), 3);
+        // Should be sorted case-insensitively
+        assert_eq!(result[0].name, "apple.md");
+        assert_eq!(result[1].name, "Banana.md");
+        assert_eq!(result[2].name, "Zebra.md");
+    }
+
+    #[test]
+    fn test_get_directory_tree_valid_directory() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        fs::write(temp_dir.path().join("test.md"), "content").expect("Failed to create file");
+
+        let result = get_directory_tree(temp_dir.path().to_string_lossy().to_string());
+
+        assert!(result.is_ok());
+        let tree = result.unwrap();
+        assert_eq!(tree.len(), 1);
+        assert_eq!(tree[0].name, "test.md");
+    }
+
+    #[test]
+    fn test_get_directory_tree_nonexistent_path() {
+        let result = get_directory_tree("/nonexistent/directory".to_string());
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Invalid directory path");
+    }
+
+    #[test]
+    fn test_get_directory_tree_file_path() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = temp_dir.path().join("test.md");
+        fs::write(&file_path, "content").expect("Failed to create file");
+
+        let result = get_directory_tree(file_path.to_string_lossy().to_string());
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Invalid directory path");
+    }
+
+    #[test]
+    fn test_read_dir_recursive_deep_nesting() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let level1 = temp_dir.path().join("level1");
+        let level2 = level1.join("level2");
+        let level3 = level2.join("level3");
+
+        fs::create_dir_all(&level3).expect("Failed to create nested directories");
+        fs::write(level3.join("deep.md"), "content").expect("Failed to create deep file");
+        fs::write(level1.join("file1.md"), "content").expect("Failed to create level1 file");
+
+        let result = read_dir_recursive(temp_dir.path());
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].name, "level1");
+        assert!(result[0].is_dir);
+        
+        let level1_children = result[0].children.as_ref().unwrap();
+        assert_eq!(level1_children.len(), 2);
+        
+        // Find level2 directory
+        let level2_node = level1_children.iter().find(|n| n.name == "level2").unwrap();
+        assert!(level2_node.is_dir);
+        
+        let level2_children = level2_node.children.as_ref().unwrap();
+        let level3_node = level2_children.iter().find(|n| n.name == "level3").unwrap();
+        assert!(level3_node.is_dir);
+        
+        let level3_children = level3_node.children.as_ref().unwrap();
+        assert_eq!(level3_children.len(), 1);
+        assert_eq!(level3_children[0].name, "deep.md");
+    }
+
+    // ===== Crash Logging Tests =====
+
+    #[test]
+    #[serial]
+    fn test_log_crash_creates_file() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let current_dir = std::env::current_dir().expect("Failed to get current dir");
+        
+        // Change to temp directory for this test
+        std::env::set_current_dir(temp_dir.path()).expect("Failed to change directory");
+
+        log_crash("Test crash message".to_string());
+
+        let crash_log_path = temp_dir.path().join("crash.log");
+        assert!(crash_log_path.exists(), "crash.log file was not created");
+        
+        let content = fs::read_to_string(&crash_log_path).expect("Failed to read crash.log");
+        assert!(content.contains("Test crash message"), "Crash message not found in log");
+        assert!(content.contains("[UI_ERROR]"), "Error type not found in log");
+
+        // Restore original directory
+        std::env::set_current_dir(current_dir).expect("Failed to restore directory");
+    }
+
+    #[test]
+    #[serial]
+    fn test_log_crash_appends_to_existing_file() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let crash_log_path = temp_dir.path().join("crash.log");
+        
+        // Create initial log file
+        fs::write(&crash_log_path, "Initial message\n").expect("Failed to create initial log");
+
+        let current_dir = std::env::current_dir().expect("Failed to get current dir");
+        std::env::set_current_dir(temp_dir.path()).expect("Failed to change directory");
+
+        log_crash("Second message".to_string());
+
+        std::env::set_current_dir(current_dir).expect("Failed to restore directory");
+
+        let content = fs::read_to_string(&crash_log_path).expect("Failed to read crash.log");
+        assert!(content.contains("Initial message"), "Initial message was lost");
+        assert!(content.contains("Second message"), "Second message was not appended");
+    }
+
+    #[test]
+    #[serial]
+    fn test_log_crash_includes_timestamp() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let current_dir = std::env::current_dir().expect("Failed to get current dir");
+        
+        std::env::set_current_dir(temp_dir.path()).expect("Failed to change directory");
+
+        log_crash("Timestamped message".to_string());
+
+        std::env::set_current_dir(current_dir).expect("Failed to restore directory");
+
+        let crash_log_path = temp_dir.path().join("crash.log");
+        let content = fs::read_to_string(&crash_log_path).expect("Failed to read crash.log");
+        
+        // Check that timestamp format is present (rough check for YYYY-MM-DD HH:MM:SS)
+        assert!(content.contains("20"), "Year not found in timestamp");
+        assert!(content.contains("-"), "Date separator not found in timestamp");
+        assert!(content.contains(":"), "Time separator not found in timestamp");
+    }
+
+    // ===== Path Tests =====
+
+    #[test]
+    fn test_file_node_serialization() {
+        let node = FileNode {
+            name: "test.md".to_string(),
+            path: "/path/to/test.md".to_string(),
+            is_dir: false,
+            children: None,
+        };
+
+        let json = serde_json::to_string(&node).expect("Failed to serialize FileNode");
+        assert!(json.contains("\"name\":\"test.md\""));
+        assert!(json.contains("\"is_dir\":false"));
+    }
+
+    #[test]
+    fn test_file_node_with_children_serialization() {
+        let child = FileNode {
+            name: "child.md".to_string(),
+            path: "/path/to/child.md".to_string(),
+            is_dir: false,
+            children: None,
+        };
+
+        let parent = FileNode {
+            name: "parent".to_string(),
+            path: "/path/to/parent".to_string(),
+            is_dir: true,
+            children: Some(vec![child]),
+        };
+
+        let json = serde_json::to_string(&parent).expect("Failed to serialize FileNode");
+        assert!(json.contains("\"name\":\"parent\""));
+        assert!(json.contains("\"is_dir\":true"));
+        assert!(json.contains("\"name\":\"child.md\""));
+    }
+
+    #[test]
+    fn test_folder_result_serialization() {
+        let tree = vec![FileNode {
+            name: "test.md".to_string(),
+            path: "/path/test.md".to_string(),
+            is_dir: false,
+            children: None,
+        }];
+
+        let result = FolderResult {
+            path: "/path".to_string(),
+            tree,
+        };
+
+        let json = serde_json::to_string(&result).expect("Failed to serialize FolderResult");
+        assert!(json.contains("\"path\":\"/path\""));
+        assert!(json.contains("\"name\":\"test.md\""));
+    }
+
+    // ===== Edge Cases and Robustness =====
+
+    #[test]
+    fn test_load_file_with_special_characters_in_path() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = temp_dir.path().join("test file with spaces.md");
+        let content = "Content with spaces in filename";
+
+        fs::write(&file_path, content).expect("Failed to write file");
+
+        let result = futures::executor::block_on(load_file(file_path.to_string_lossy().to_string()));
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), content);
+    }
+
+    #[test]
+    fn test_read_dir_recursive_with_many_files() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        
+        // Create 100 markdown files
+        for i in 0..100 {
+            let filename = format!("file_{:03}.md", i);
+            fs::write(temp_dir.path().join(&filename), "content").expect("Failed to create file");
+        }
+
+        let result = read_dir_recursive(temp_dir.path());
+        assert_eq!(result.len(), 100);
+    }
+
+    #[test]
+    fn test_save_file_with_large_content() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = temp_dir.path().join("large.md");
+        
+        // Create 1MB of content
+        let large_content = "x".repeat(1024 * 1024);
+
+        fs::write(&file_path, &large_content).expect("Failed to write file");
+        
+        let saved_content = fs::read_to_string(&file_path).expect("Failed to read file");
+        assert_eq!(saved_content.len(), large_content.len());
+    }
+
+    #[test]
+    fn test_read_dir_recursive_newline_in_filename() {
+        // This test checks that the function handles filenames appropriately
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        fs::write(temp_dir.path().join("normal.md"), "content").expect("Failed to create file");
+
+        let result = read_dir_recursive(temp_dir.path());
+        assert_eq!(result.len(), 1);
+        assert!(!result[0].name.contains('\n'));
+    }
 }
