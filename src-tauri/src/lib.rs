@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use std::panic;
 use chrono::Local;
 use std::io::Write;
@@ -305,7 +307,6 @@ fn log_crash(message: String){
 // Sets up the Tauri application with menus and command handlers
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-
 
     panic::set_hook(Box::new(|info| {
 
