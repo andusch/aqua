@@ -1,6 +1,6 @@
 {
-  "name": "aqua",
-  "version": "0.1.0",
+  "name": "Aqua",
+  "version": "1.0.4",
   "description": "AQUA: A Light-weight Desktop Application for Markdown Editing and Management",
   "type": "module",
   "scripts": {
