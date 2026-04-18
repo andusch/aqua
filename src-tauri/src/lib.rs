@@ -411,7 +411,20 @@ pub fn run() {
                 ],
             )?;
 
-            app.set_menu(Menu::with_items(app, &[&file_menu, &edit_menu])?)?;
+            let window_menu = Submenu::with_items(
+                app,
+                "Window",
+                true,
+                &[
+                    &PredefinedMenuItem::minimize(app, None)?,
+                    &MenuItemBuilder::new("Toggle Sidebar")
+                        .id("toggle-sidebar")
+                        .accelerator("CmdOrCtrl+B")
+                        .build(app)?,
+                    ],
+                )?;
+
+            app.set_menu(Menu::with_items(app, &[&file_menu, &edit_menu, &window_menu])?)?;
 
             Ok(())
         })
@@ -430,6 +443,7 @@ pub fn run() {
                     "copy" => win.emit("copy", ()),
                     "paste" => win.emit("paste", ()),
                     "select-all" => win.emit("select-all", ()),
+                    "toggle-sidebar" => win.emit("menu-toggle-sidebar", ()),
                     _ => Ok(()),
                 };
             }
