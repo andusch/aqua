@@ -1,5 +1,3 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 use std::panic;
 use chrono::Local;
 use std::io::Write;
@@ -366,6 +364,7 @@ pub fn run() {
                         .id("save")
                         .accelerator("CmdOrCtrl+S")
                         .build(app)?,
+                    &PredefinedMenuItem::separator(app)?,
                     &MenuItemBuilder::new("Export as HTML")
                         .id("menu-export-html")
                         .accelerator("CmdOrCtrl+E")
@@ -373,6 +372,11 @@ pub fn run() {
                     &MenuItemBuilder::new("Print to PDF")
                         .id("menu-print-pdf")
                         .accelerator("CmdOrCtrl+P")
+                        .build(app)?,
+                    &PredefinedMenuItem::separator(app)?,
+                    &MenuItemBuilder::new("Quit")
+                        .id("quit")
+                        .accelerator("CmdOrCtrl+Q")
                         .build(app)?,
                 ],
             )?;
@@ -435,6 +439,7 @@ pub fn run() {
                     "open" => win.emit("menu-open", ()),
                     "open_folder" => win.emit("menu-open-folder", ()),
                     "save" => win.emit("menu-save", ()),
+                    "quit" => Ok(app.exit(0)),
                     "menu-export-html" => win.emit("menu-export-html", ()),
                     "menu-print-pdf" => win.emit("menu-print-pdf", ()),
                     "undo" => win.emit("undo", ()),
