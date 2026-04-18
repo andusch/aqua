@@ -358,6 +358,10 @@ pub fn run() {
                         .id("open")
                         .accelerator("CmdOrCtrl+O")
                         .build(app)?,
+                    &MenuItemBuilder::new("Open folder...")
+                        .id("open_folder")
+                        .accelerator("CmdOrCtrl+Shift+O")
+                        .build(app)?,
                     &MenuItemBuilder::new("Save")
                         .id("save")
                         .accelerator("CmdOrCtrl+S")
@@ -407,7 +411,20 @@ pub fn run() {
                 ],
             )?;
 
-            app.set_menu(Menu::with_items(app, &[&file_menu, &edit_menu])?)?;
+            let window_menu = Submenu::with_items(
+                app,
+                "Window",
+                true,
+                &[
+                    &PredefinedMenuItem::minimize(app, None)?,
+                    &MenuItemBuilder::new("Toggle Sidebar")
+                        .id("toggle-sidebar")
+                        .accelerator("CmdOrCtrl+B")
+                        .build(app)?,
+                    ],
+                )?;
+
+            app.set_menu(Menu::with_items(app, &[&file_menu, &edit_menu, &window_menu])?)?;
 
             Ok(())
         })
@@ -416,6 +433,7 @@ pub fn run() {
                 let _ = match event.id().as_ref() {
                     "new" => win.emit("menu-new", ()),
                     "open" => win.emit("menu-open", ()),
+                    "open_folder" => win.emit("menu-open-folder", ()),
                     "save" => win.emit("menu-save", ()),
                     "menu-export-html" => win.emit("menu-export-html", ()),
                     "menu-print-pdf" => win.emit("menu-print-pdf", ()),
@@ -425,6 +443,7 @@ pub fn run() {
                     "copy" => win.emit("copy", ()),
                     "paste" => win.emit("paste", ()),
                     "select-all" => win.emit("select-all", ()),
+                    "toggle-sidebar" => win.emit("menu-toggle-sidebar", ()),
                     _ => Ok(()),
                 };
             }

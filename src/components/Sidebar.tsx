@@ -123,11 +123,21 @@ const Sidebar = (props: SidebarProps) => {
 
   // Listen for refresh events from Rust watcher
   onMount(async () => {
-    const unListen = await listen('refresh-files', async () => {
+    
+    // Refresh file watcher
+    const unListenRefresh = await listen('refresh-files', async () => {
         console.log("File system change detected!");
         refreshTree();
     });
-    onCleanup(() => unListen());
+
+    const unListenMenuFolder = await listen('menu-open-folder', async () => {
+      await pickFolder();
+    })
+
+    onCleanup(() => {
+      unListenRefresh();
+      unListenMenuFolder();
+    });
   });
 
   return (

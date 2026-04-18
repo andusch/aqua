@@ -1,5 +1,5 @@
 // solid-js
-import { Component, createSignal, createEffect, onMount, onCleanup, createMemo } from "solid-js";
+import { Component, createSignal, createEffect, onMount, onCleanup, createMemo, Show } from "solid-js";
 // Resizable import
 import Resizable from '@corvu/resizable';
 
@@ -30,6 +30,7 @@ import { create } from "@tauri-apps/plugin-fs";
 const App: Component = () => {
   
   const [md, setMd] = createSignal("# Hello Aqua\nStart typing…");
+  const [showSidebar, setShowSidebar] = createSignal(true);
 
   // Update window title on file path or modified changeb
   createEffect(() => {
@@ -58,7 +59,11 @@ const App: Component = () => {
         printToPdf(content);
       });
 
-      unlisteners.push(u1, u2);
+      const u3 = await listen("menu-toggle-sidebar", () => {
+        setShowSidebar(!showSidebar());
+      });
+
+      unlisteners.push(u1, u2, u3);
 
     };
 
@@ -103,7 +108,10 @@ const App: Component = () => {
   return (
     <div class="app-container">
     <div class="app">
-      <Sidebar onFileSelect={handleFileSelect} />
+      <Show when={showSidebar()}>
+        <Sidebar onFileSelect={handleFileSelect} />
+      </Show>
+
       <div class="main-content">
         <Resizable class="resizable-container">
           <Resizable.Panel
