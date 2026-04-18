@@ -358,6 +358,10 @@ pub fn run() {
                         .id("open")
                         .accelerator("CmdOrCtrl+O")
                         .build(app)?,
+                    &MenuItemBuilder::new("Open folder...")
+                        .id("open_folder")
+                        .accelerator("CmdOrCtrl+Shift+O")
+                        .build(app)?,
                     &MenuItemBuilder::new("Save")
                         .id("save")
                         .accelerator("CmdOrCtrl+S")
@@ -416,6 +420,7 @@ pub fn run() {
                 let _ = match event.id().as_ref() {
                     "new" => win.emit("menu-new", ()),
                     "open" => win.emit("menu-open", ()),
+                    "open_folder" => win.emit("menu-open-folder", ()),
                     "save" => win.emit("menu-save", ()),
                     "menu-export-html" => win.emit("menu-export-html", ()),
                     "menu-print-pdf" => win.emit("menu-print-pdf", ()),
