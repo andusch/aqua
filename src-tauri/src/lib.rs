@@ -185,9 +185,14 @@ async fn open_folder_and_list_files(app: AppHandle) -> Result<FolderResult, Stri
             let app_handle = app.clone();
             let path_to_watch = path_buf.clone();
 
-            let mut watcher = notify::recommended_watcher(move | res | {
+            let mut watcher = notify::recommended_watcher(move | res: Result<notify::Event, notify::Error> | {
                 match res {
-                    Ok(_) => { let _ = app_handle.emit("refresh-files", ()); },
+                    // Ok(_) => { let _ = app_handle.emit("refresh-files", ()); },
+                    Ok(event) => {
+                        if event.kind.is_modify() || event.kind.is_create() || event.kind.is_remove() {
+                            let _ = app_handle.emit("refresh-files", ());
+                        }
+                    },
                     Err(e) => println!("watch error: {:?}", e),
                 }
             }).map_err(|e| e.to_string())?;
@@ -207,14 +212,28 @@ async fn open_folder_and_list_files(app: AppHandle) -> Result<FolderResult, Stri
     }
 }
 
+// #[tauri::command]
+// fn get_directory_tree(path: String) -> Result<Vec<FileNode>, String> {
+//     let p = Path::new(&path);
+//     if p.exists() && p.is_dir() {
+//         Ok(read_dir_recursive(p))
+//     } else {
+//         Err("Invalid directory path".into())
+//     }
+// }
+
 #[tauri::command]
-fn get_directory_tree(path: String) -> Result<Vec<FileNode>, String> {
-    let p = Path::new(&path);
-    if p.exists() && p.is_dir() {
-        Ok(read_dir_recursive(p))
-    } else {
-        Err("Invalid directory path".into())
-    }
+async fn get_directory_tree(path: String) -> Result<Vec<FileNode>, String> {
+    tokio::task::spawn_blocking(move || {
+        let p = std::path::Path::new(&path);
+        if p.exists() && p.is_dir() {
+            Ok(read_dir_recursive(p))
+        } else {
+            Err("Invalid directory path".into())
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 // Opens a file dialog to select a markdown file and reads its content
