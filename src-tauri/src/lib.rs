@@ -7,11 +7,12 @@ use std::sync::Mutex;
 use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_fs::FsExt;
 use notify::{Watcher, RecursiveMode};
 use tokio::io::{AsyncReadExt, BufReader};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
-use tauri::{generate_context, generate_handler, AppHandle, Builder, Emitter, Manager, Window};
+use tauri::{generate_context, generate_handler, AppHandle, Builder, Emitter, Manager, RunEvent, Window};
 
 #[derive(serde::Serialize, Clone, Debug)]
 struct FileNode {
@@ -40,6 +41,44 @@ struct FileChunk {
 }
 
 struct WatcherState(Mutex<Option<notify::RecommendedWatcher>>);
+
+#[cfg(any(windows, target_os = "linux"))]
+fn path_from_cli_arg(arg: &str) -> Option<PathBuf> {
+    if arg.starts_with('-') {
+        return None;
+    }
+
+    if let Some(rest) = arg.strip_prefix("file://") {
+        let path = rest.trim_start_matches('/');
+        return Some(PathBuf::from(path));
+    }
+
+    Some(PathBuf::from(arg))
+}
+
+#[cfg(any(windows, target_os = "linux"))]
+fn opened_files_from_args() -> Vec<PathBuf> {
+    std::env::args()
+        .skip(1)
+        .filter_map(|arg| path_from_cli_arg(&arg))
+        .collect()
+}
+
+fn emit_opened_files(app: &AppHandle, files: Vec<PathBuf>) {
+    if files.is_empty() {
+        return;
+    }
+
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+
+    for file in files {
+        let _ = app.fs_scope().allow_file(&file);
+        let path = file.to_string_lossy().into_owned();
+        let _ = window.emit("open-file-path", path);
+    }
+}
 
 #[tauri::command]
 async fn pick_file(app: AppHandle) -> Result<Option<String>, String> {
@@ -360,6 +399,11 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
+            #[cfg(any(windows, target_os = "linux"))]
+            {
+                let files = opened_files_from_args();
+                emit_opened_files(app.handle(), files);
+            }
 
             let file_menu = Submenu::with_items(
                 app,
@@ -485,8 +529,17 @@ pub fn run() {
             pick_file,
             log_crash,
         ])
-        .run(generate_context!())
-        .expect("error while running tauri application");
+        .build(generate_context!())
+        .expect("error while running tauri application")
+        .run(|app_handle, event| {
+            if let RunEvent::Opened { urls } = event {
+                let files: Vec<PathBuf> = urls
+                    .into_iter()
+                    .filter_map(|url| url.to_file_path().ok())
+                    .collect();
+                emit_opened_files(&app_handle, files);
+            }
+        });
 }
 
 #[cfg(test)]

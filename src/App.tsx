@@ -63,7 +63,19 @@ const App: Component = () => {
         setShowSidebar(!showSidebar());
       });
 
-      unlisteners.push(u1, u2, u3);
+      const u4 = await listen<string>("open-file-path", async (event) => {
+        const path = event.payload;
+        try {
+          const content = await loadFileChunked(path);
+          setMd(content);
+          fileState.setPath(path);
+          fileState.setModified(false);
+        } catch (error) {
+          console.error("Error opening file from association:", error);
+        }
+      });
+
+      unlisteners.push(u1, u2, u3, u4);
 
     };
 
