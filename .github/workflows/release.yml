@@ -13,7 +13,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            bundles: 'deb'
+            bundles: 'deb', 'appimage'
           - os: macos-latest
             bundles: 'dmg'
           - os: windows-latest
