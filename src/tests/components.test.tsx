@@ -1,7 +1,24 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from 'solid-testing-library';
+import { ErrorBoundary } from 'solid-js';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { themeState } from '../store/themeState';
+
+const ThrowingComponent = () => {
+  throw new Error('Test render error');
+};
+
+describe('ErrorBoundary', () => {
+  it('should render fallback when child throws', () => {
+    const fallback = (err: Error) => <p role="alert">Caught: {err.message}</p>;
+    render(() => (
+      <ErrorBoundary fallback={fallback}>
+        <ThrowingComponent />
+      </ErrorBoundary>
+    ));
+    expect(screen.getByRole('alert').textContent).toContain('Test render error');
+  });
+});
 
 describe('ThemeToggle Component', () => {
   beforeEach(() => {

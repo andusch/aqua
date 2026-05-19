@@ -23,6 +23,7 @@ import { oceanTheme } from '../styles/themes/oceanTheme.ts';
 
 // File loading utility
 import { loadFileChunked } from '../utils/fileLoader.ts';
+import { showError } from '../utils/errors.ts';
 
 interface EditorProps {
   value: string;
@@ -117,50 +118,38 @@ const Editor = (props: EditorProps) => {
 
     // Open file menu listener
     const unlistenOpen = await listen('menu-open', async () => {
-
-      const file = await invoke<{path: string, content: string}>('pick_file').catch(() => null);
-      if (!file) return;
-
       try {
-        
-        const content = await loadFileChunked(file.path);
-
-        v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: content } });
-
+        const file = await invoke<{ path: string; content: string }>('open_file');
+        v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: file.content } });
         fileState.setPath(file.path);
         fileState.setModified(false);
-        props.onChange?.(content);
-
+        props.onChange?.(file.content);
       } catch (error) {
-        console.error("Error loading file:", error);
+        showError(error, 'Failed to open file');
       }
-
     });
     unlisteners.push(unlistenOpen);
 
     // Save file menu listener
     const unlistenSave = await listen('menu-save', async () => {
-
       const text = v.state.doc.toString();
       const path = fileState.path();
 
-      console.log('[SAVE] path =', path);
-
-      // overwrite existing file
-      if (path) {
-        await invoke('save_file', { path, content: text });
-        fileState.setModified(false);
+      try {
+        if (path) {
+          await invoke('save_file', { path, content: text });
+          fileState.setModified(false);
+        } else {
+          const newPath = await invoke<string>('save_file_dialog', { text });
+          fileState.setPath(newPath);
+          fileState.setModified(false);
+        }
+      } catch (error) {
+        // #region agent log
+        fetch('http://127.0.0.1:7885/ingest/2d36209d-e322-4d46-a85e-5799a89a17f5',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c31c53'},body:JSON.stringify({sessionId:'c31c53',location:'Editor.tsx:menu-save',message:'save failed',data:{path:fileState.path(),error:String(error)},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
+        showError(error, 'Failed to save file');
       }
-      // save as new file
-      else {
-        const newPath = await invoke<string | null>('save_file_dialog', { text });
-        console.log('[SAVE AS] newPath =', newPath);
-        if (!newPath) return;
-        fileState.setPath(newPath);
-        fileState.setModified(false);
-      }
-
-      
     });
     unlisteners.push(unlistenSave);
 
@@ -170,7 +159,7 @@ const Editor = (props: EditorProps) => {
       const text = v.state.doc.toString();
       invoke('save_file', { path: fileState.path(), content: text })
         .then(() => fileState.setModified(false))
-        .catch(() => {/* silent fail */});
+        .catch((err) => showError(err, 'Auto-save failed'));
     }, 30_000);
 
     // Undo, Redo, Select All, Copy, Cut, Paste listeners

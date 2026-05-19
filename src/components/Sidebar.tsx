@@ -9,6 +9,7 @@ import {FileNode, FlatNode, flattenTree} from '../store/fileTreeTypes';
 import { ThemeToggle } from './ThemeToggle';
 
 import { createVirtualizer } from '@tanstack/solid-virtual';
+import { showError } from '../utils/errors.ts';
 
 // Props
 interface SidebarProps {
@@ -101,7 +102,7 @@ const Sidebar = (props: SidebarProps) => {
         setExpandedKeys(new Set<string>()); // Reset expanded keys when opening new folder
       }
     } catch (err) {
-      if (err !== "cancelled") console.error("Error:", err);
+      showError(err, 'Failed to open folder');
     }
   };
 
@@ -115,8 +116,8 @@ const Sidebar = (props: SidebarProps) => {
     try {
       const updatedTree = await invoke<FileNode[]>('get_directory_tree', {path});
       setFileTree(updatedTree);
-    } catch (err){
-      console.error("Failed to refresh tree:", err);
+    } catch (err) {
+      showError(err, 'Failed to refresh file tree');
     }
 
   };

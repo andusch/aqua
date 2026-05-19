@@ -1,5 +1,5 @@
 // solid-js
-import { Component, createSignal, createEffect, onMount, onCleanup, createMemo, Show } from "solid-js";
+import { Component, createSignal, createEffect, onMount, onCleanup, Show, ErrorBoundary } from "solid-js";
 // Resizable import
 import Resizable from '@corvu/resizable';
 
@@ -12,6 +12,7 @@ import { listen } from "@tauri-apps/api/event";
 import Editor from "./components/Editor.tsx";
 import Preview from "./components/Preview.tsx";
 import Sidebar from "./components/Sidebar.tsx";
+import ToastContainer from "./components/ToastContainer.tsx";
 
 // file loading utility
 import { loadFileChunked } from "./utils/fileLoader.ts";
@@ -20,22 +21,26 @@ import { fileState } from './store/fileState';
 // styles
 import "./styles/main.css";
 // utils
-import { exportToHtml, printToPdf } from './utils/export.ts';
-// theme state store
-import { themeState } from './store/themeState.ts';
+import { printToPdf } from './utils/export.ts';
+import { showError } from './utils/errors.ts';
+import { toastState } from './store/toastState.ts';
 // status bar
 import StatusBar from "./components/StatusBar.tsx";
-import { create } from "@tauri-apps/plugin-fs";
+
+const PreviewErrorFallback = (err: Error) => (
+  <div class="preview-error-fallback">
+    <p>Preview failed to render: {err.message}</p>
+  </div>
+);
 
 const App: Component = () => {
   
   const [md, setMd] = createSignal("# Hello Aqua\nStart typing…");
   const [showSidebar, setShowSidebar] = createSignal(true);
 
-  // Update window title on file path or modified changeb
   createEffect(() => {
     const name = fileState.path()?.split(/[/\\]/).pop() || 'Untitled.md';
-    try { getCurrentWindow().setTitle(`${name} - Aqua`); } catch (error) {console.error("Failed to set window title:", error);}
+    try { getCurrentWindow().setTitle(`${name} - Aqua`); } catch (error) { console.error("Failed to set window title:", error); }
   });
 
   onMount(() => {
@@ -44,23 +49,19 @@ const App: Component = () => {
 
     const setupListeners = async () => {
       
-      const u1 = await listen("menu-export-html", () => {
-        const previewEl = document.querySelector('.preview');
-        if (previewEl) {
-          exportToHtml(previewEl.innerHTML, "document");
-        }
-        else {
-          console.error("Preview element not found for export.");
-        }
-      });
-
-      const u2 = await listen("menu-print-pdf", () => {
+      const u1 = await listen("menu-print-pdf", () => {
         const content = md();
         printToPdf(content);
       });
 
-      const u3 = await listen("menu-toggle-sidebar", () => {
+      const u2 = await listen("menu-toggle-sidebar", () => {
         setShowSidebar(!showSidebar());
+      });
+
+      const u3 = await listen<{ level: string; message: string }>("app-toast", (event) => {
+        const { level, message } = event.payload;
+        const variant = level === 'error' ? 'error' : level === 'success' ? 'success' : 'info';
+        toastState.push(message, variant);
       });
 
       const u4 = await listen<string>("open-file-path", async (event) => {
@@ -71,7 +72,7 @@ const App: Component = () => {
           fileState.setPath(path);
           fileState.setModified(false);
         } catch (error) {
-          console.error("Error opening file from association:", error);
+          showError(error, 'Failed to open file');
         }
       });
 
@@ -79,7 +80,6 @@ const App: Component = () => {
 
     };
 
-    // global crash reporting
     window.addEventListener('unhandledrejection', (event) => {
       const errorMsg = `[JS-UI] Unhandled Promise Rejection: ${event.reason}`;
       invoke('log_crash', { message: errorMsg }).catch(() => {});
@@ -99,26 +99,20 @@ const App: Component = () => {
 
   });
 
-  // Handle file selection from sidebar
   const handleFileSelect = async (path: string) => {
-
     try {
-      
       const content = await loadFileChunked(path);
-      
       setMd(content);
       fileState.setPath(path);
       fileState.setModified(false);
-
     } catch (error) {
-      console.error("Error loading file:", error);
-      return;
+      showError(error, 'Failed to load file');
     }
-
   }
   
   return (
     <div class="app-container">
+    <ToastContainer />
     <div class="app">
       <Show when={showSidebar()}>
         <Sidebar onFileSelect={handleFileSelect} />
@@ -146,7 +140,9 @@ const App: Component = () => {
             minSize={0.2}
             class="preview-panel"
           >
-            <Preview markdown={md()} />
+            <ErrorBoundary fallback={PreviewErrorFallback}>
+              <Preview markdown={md()} />
+            </ErrorBoundary>
           </Resizable.Panel>
         </Resizable>
       </div>

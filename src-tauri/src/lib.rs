@@ -12,7 +12,7 @@ use notify::{Watcher, RecursiveMode};
 use tokio::io::{AsyncReadExt, BufReader};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
-use tauri::{generate_context, generate_handler, AppHandle, Builder, Emitter, Manager, RunEvent, Window};
+use tauri::{generate_context, generate_handler, AppHandle, Builder, Emitter, Manager, RunEvent, State, Window};
 
 #[derive(serde::Serialize, Clone, Debug)]
 struct FileNode {
@@ -41,6 +41,148 @@ struct FileChunk {
 }
 
 struct WatcherState(Mutex<Option<notify::RecommendedWatcher>>);
+struct WorkspaceState(Mutex<Option<PathBuf>>);
+
+#[derive(Clone, serde::Serialize)]
+struct ToastPayload {
+    level: String,
+    message: String,
+}
+
+fn is_md_extension(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.eq_ignore_ascii_case("md"))
+        .unwrap_or(false)
+}
+
+// #region agent log
+fn debug_log(hypothesis_id: &str, location: &str, message: &str, data: serde_json::Value) {
+    if let Ok(mut f) = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("/Users/AnduScheusan/Documents/Coding/aqua/.cursor/debug-c31c53.log")
+    {
+        let _ = writeln!(
+            f,
+            "{}",
+            serde_json::json!({
+                "sessionId": "c31c53",
+                "hypothesisId": hypothesis_id,
+                "location": location,
+                "message": message,
+                "data": data,
+                "timestamp": Local::now().timestamp_millis(),
+            })
+        );
+    }
+}
+// #endregion
+
+fn validate_md_path(path: &str) -> Result<PathBuf, String> {
+    let p = PathBuf::from(path);
+    let file_exists = p.exists();
+    // #region agent log
+    debug_log(
+        "A",
+        "lib.rs:validate_md_path:entry",
+        "validate_md_path called",
+        serde_json::json!({ "path": path, "file_exists": file_exists }),
+    );
+    // #endregion
+    if !is_md_extension(&p) {
+        return Err("Only .md files are allowed".to_string());
+    }
+    
+    if file_exists {
+        let canonical_result = p.canonicalize();
+        // #region agent log
+        debug_log(
+            "A",
+            "lib.rs:validate_md_path:canonicalize",
+            "canonicalize result",
+            serde_json::json!({
+                "path": path,
+                "file_exists": file_exists,
+                "ok": canonical_result.is_ok(),
+                "err": canonical_result.as_ref().err().map(|e| e.to_string()),
+            }),
+        );
+        // #endregion
+        canonical_result.map_err(|_| format!("File not found or invalid path: {}", path))
+    } else {
+        // For new files, we check if the parent directory exists and is valid
+        if let Some(parent) = p.parent() {
+            if parent.as_os_str().is_empty() || parent.exists() {
+                Ok(p)
+            } else {
+                Err(format!("Parent directory does not exist: {}", parent.display()))
+            }
+        } else {
+            Ok(p)
+        }
+    }
+}
+
+fn emit_toast(app: &AppHandle, level: &str, message: impl Into<String>) {
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.emit(
+            "app-toast",
+            ToastPayload {
+                level: level.to_string(),
+                message: message.into(),
+            },
+        );
+    }
+}
+
+fn map_io_error(app: &AppHandle, err: std::io::Error, context: &str) -> String {
+    let message = match err.kind() {
+        std::io::ErrorKind::PermissionDenied => {
+            format!("Permission denied while {}", context)
+        }
+        std::io::ErrorKind::NotFound => format!("File not found while {}", context),
+        _ => format!("{}: {}", context, err),
+    };
+    if matches!(
+        err.kind(),
+        std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::NotFound
+    ) {
+        emit_toast(app, "error", message.clone());
+    }
+    message
+}
+
+fn grant_md_file(app: &AppHandle, path: &Path) {
+    let _ = app.fs_scope().allow_file(path);
+}
+
+fn grant_workspace(app: &AppHandle, path: &Path) {
+    let _ = app.fs_scope().allow_directory(path, true);
+}
+
+fn set_workspace(state: &WorkspaceState, path: &Path) {
+    if let Ok(canonical) = path.canonicalize() {
+        *state.0.lock().unwrap() = Some(canonical);
+    }
+}
+
+fn validate_workspace_path(state: &WorkspaceState, path: &str) -> Result<PathBuf, String> {
+    let workspace = state.0.lock().unwrap();
+    let workspace = workspace
+        .as_ref()
+        .ok_or_else(|| "No workspace open".to_string())?;
+    let canonical = PathBuf::from(path)
+        .canonicalize()
+        .map_err(|_| "Invalid directory path".to_string())?;
+    if !canonical.starts_with(workspace) {
+        return Err("Path is outside the open workspace".to_string());
+    }
+    if !canonical.is_dir() {
+        return Err("Invalid directory path".to_string());
+    }
+    Ok(canonical)
+}
 
 #[cfg(any(windows, target_os = "linux"))]
 fn path_from_cli_arg(arg: &str) -> Option<PathBuf> {
@@ -74,7 +216,18 @@ fn emit_opened_files(app: &AppHandle, files: Vec<PathBuf>) {
     };
 
     for file in files {
-        let _ = app.fs_scope().allow_file(&file);
+        if !is_md_extension(&file) {
+            emit_toast(
+                app,
+                "error",
+                format!(
+                    "Only .md files can be opened: {}",
+                    file.to_string_lossy()
+                ),
+            );
+            continue;
+        }
+        grant_md_file(app, &file);
         let path = file.to_string_lossy().into_owned();
         let _ = window.emit("open-file-path", path);
     }
@@ -82,27 +235,39 @@ fn emit_opened_files(app: &AppHandle, files: Vec<PathBuf>) {
 
 #[tauri::command]
 async fn pick_file(app: AppHandle) -> Result<Option<String>, String> {
-
+    let app_for_dialog = app.clone();
     let path = tokio::task::spawn_blocking(move || {
-        app.dialog()
+        app_for_dialog.dialog()
             .file()
             .add_filter("Markdown", &["md"])
-            .blocking_pick_file()    
+            .blocking_pick_file()
     })
     .await
     .map_err(|e| e.to_string())?;
 
     match path {
-        Some(p) => Ok(Some(p.to_string())),
+        Some(p) => {
+            let path_str = p.to_string();
+            let path_buf = PathBuf::from(&path_str);
+            if !is_md_extension(&path_buf) {
+                emit_toast(&app, "error", "Only .md files are allowed");
+                return Ok(None);
+            }
+            grant_md_file(&app, &path_buf);
+            Ok(Some(path_str))
+        }
         None => Ok(None),
     }
-
 }
 
 #[tauri::command]
-async fn read_file_chunked(window: Window, path: String) -> Result<(), String> {
+async fn read_file_chunked(app: AppHandle, window: Window, path: String) -> Result<(), String> {
+    let validated = validate_md_path(&path)?;
+    grant_md_file(&app, &validated);
 
-    let file = File::open(&path).await.map_err(|e| e.to_string())?;
+    let file = File::open(&validated)
+        .await
+        .map_err(|e| map_io_error(&app, e, "reading file"))?;
     let mut reader = BufReader::new(file);
     let mut buffer = [0; 65536]; // 64KB buffer
 
@@ -176,30 +341,25 @@ fn read_dir_recursive(path: &Path) -> Vec<FileNode> {
 }
 
 #[tauri::command]
-async fn load_file(path: String) -> Result<String, String> {
-    
-    // Convert the string path to PathBuf
-    let p = PathBuf::from(&path);
-
-    // canonicalize
-    let actual_path = p.canonicalize().map_err(|_| format!("File not found or invalid path: {}", path))?;
-
-    fs::read_to_string(actual_path).map_err(|e| e.to_string())
-
+async fn load_file(app: AppHandle, path: String) -> Result<String, String> {
+    let actual_path = validate_md_path(&path)?;
+    grant_md_file(&app, &actual_path);
+    fs::read_to_string(&actual_path).map_err(|e| map_io_error(&app, e, "loading file"))
 }
 
 // Saves content to a specified file path
 #[tauri::command]
-async fn save_file(_app: AppHandle, path: String, content: String) -> Result<(), String> {
-    
-    let p = PathBuf::from(&path);
+async fn save_file(app: AppHandle, path: String, content: String) -> Result<(), String> {
+    let validated = validate_md_path(&path)?;
+    grant_md_file(&app, &validated);
 
-    if let Some(parent) = p.parent() {
-        parent.canonicalize().map_err(|_| "Invalid destination directory")?;
+    if let Some(parent) = validated.parent() {
+        parent
+            .canonicalize()
+            .map_err(|_| "Invalid destination directory".to_string())?;
     }
 
-    fs::write(p, content).map_err(|e| e.to_string())
-
+    fs::write(&validated, content).map_err(|e| map_io_error(&app, e, "saving file"))
 }
 
 #[tauri::command]
@@ -218,7 +378,10 @@ async fn open_folder_and_list_files(app: AppHandle) -> Result<FolderResult, Stri
     match folder_path {
         Some(path) => {
             let path_string = path.to_string();
-            let path_buf = std::path::PathBuf::from(&path_string);
+            let path_buf = PathBuf::from(&path_string);
+
+            grant_workspace(&app, &path_buf);
+            set_workspace(&app.state::<WorkspaceState>(), &path_buf);
 
             // Set-up Watcher
             let app_handle = app.clone();
@@ -226,7 +389,6 @@ async fn open_folder_and_list_files(app: AppHandle) -> Result<FolderResult, Stri
 
             let mut watcher = notify::recommended_watcher(move | res: Result<notify::Event, notify::Error> | {
                 match res {
-                    // Ok(_) => { let _ = app_handle.emit("refresh-files", ()); },
                     Ok(event) => {
                         if event.kind.is_modify() || event.kind.is_create() || event.kind.is_remove() {
                             let _ = app_handle.emit("refresh-files", ());
@@ -234,10 +396,18 @@ async fn open_folder_and_list_files(app: AppHandle) -> Result<FolderResult, Stri
                     },
                     Err(e) => println!("watch error: {:?}", e),
                 }
-            }).map_err(|e| e.to_string())?;
+            })
+            .map_err(|e| {
+                let msg = format!("Failed to set up file watcher: {}", e);
+                emit_toast(&app, "error", msg.clone());
+                msg
+            })?;
 
-            // Changed to Recursive watching
-            watcher.watch(&path_to_watch, RecursiveMode::Recursive).map_err(|e| e.to_string())?;
+            watcher.watch(&path_to_watch, RecursiveMode::Recursive).map_err(|e| {
+                let msg = format!("Failed to watch folder: {}", e);
+                emit_toast(&app, "error", msg.clone());
+                msg
+            })?;
 
             let state = app.state::<WatcherState>();
             let mut managed_watch = state.0.lock().unwrap();
@@ -245,7 +415,10 @@ async fn open_folder_and_list_files(app: AppHandle) -> Result<FolderResult, Stri
 
             let tree = read_dir_recursive(&path_buf);
 
-            Ok(FolderResult { path: path_string, tree: tree })
+            Ok(FolderResult {
+                path: path_string,
+                tree,
+            })
         }
         None => Err("cancelled".into()),
     }
@@ -261,26 +434,25 @@ async fn open_folder_and_list_files(app: AppHandle) -> Result<FolderResult, Stri
 //     }
 // }
 
+fn get_directory_tree_inner(workspace: &WorkspaceState, path: &str) -> Result<Vec<FileNode>, String> {
+    let validated = validate_workspace_path(workspace, path)?;
+    Ok(read_dir_recursive(&validated))
+}
+
 #[tauri::command]
-async fn get_directory_tree(path: String) -> Result<Vec<FileNode>, String> {
-    tokio::task::spawn_blocking(move || {
-        let p = std::path::Path::new(&path);
-        if p.exists() && p.is_dir() {
-            Ok(read_dir_recursive(p))
-        } else {
-            Err("Invalid directory path".into())
-        }
-    })
-    .await
-    .map_err(|e| e.to_string())?
+async fn get_directory_tree(
+    workspace: State<'_, WorkspaceState>,
+    path: String,
+) -> Result<Vec<FileNode>, String> {
+    get_directory_tree_inner(&workspace, &path)
 }
 
 // Opens a file dialog to select a markdown file and reads its content
 #[tauri::command]
 async fn open_file(app: AppHandle) -> Result<OpenedFile, String> {
-
+    let app_for_dialog = app.clone();
     let path = tokio::task::spawn_blocking(move || {
-        app.dialog()
+        app_for_dialog.dialog()
             .file()
             .add_filter("Markdown", &["md"])
             .blocking_pick_file()  
@@ -291,9 +463,16 @@ async fn open_file(app: AppHandle) -> Result<OpenedFile, String> {
     match path {
         Some(p) => {
             let path_str = p.to_string();
-            let content_str = tokio::fs::read_to_string(&path_str)
+            let path_buf = PathBuf::from(&path_str);
+            if !is_md_extension(&path_buf) {
+                emit_toast(&app, "error", "Only .md files are allowed");
+                return Err("Only .md files are allowed".into());
+            }
+            grant_md_file(&app, &path_buf);
+            let validated = validate_md_path(&path_str)?;
+            let content_str = tokio::fs::read_to_string(&validated)
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| map_io_error(&app, e, "opening file"))?;
             Ok(OpenedFile {
                 path: path_str,
                 content: content_str,
@@ -301,7 +480,6 @@ async fn open_file(app: AppHandle) -> Result<OpenedFile, String> {
         }
         None => Err("cancelled".into()),
     }
-    
 }
 
 
@@ -309,8 +487,9 @@ async fn open_file(app: AppHandle) -> Result<OpenedFile, String> {
 // Opens a save file dialog and saves the provided text to the selected file
 #[tauri::command]
 async fn save_file_dialog(app: AppHandle, text: String) -> Result<String, String> {
+    let app_for_dialog = app.clone();
     let path = tokio::task::spawn_blocking(move || {
-        app.dialog()
+        app_for_dialog.dialog()
             .file()
             .add_filter("Markdown", &["md"])
             .blocking_save_file()
@@ -321,7 +500,41 @@ async fn save_file_dialog(app: AppHandle, text: String) -> Result<String, String
     match path {
         Some(p) => {
             let path_str = p.to_string();
-            tokio::fs::write(&path_str, text).await.map_err(|e| e.to_string())?;
+            let path_buf = PathBuf::from(&path_str);
+            let parent_exists = path_buf
+                .parent()
+                .map(|parent| parent.exists())
+                .unwrap_or(false);
+            // #region agent log
+            debug_log(
+                "B",
+                "lib.rs:save_file_dialog:dialog_result",
+                "save dialog returned path",
+                serde_json::json!({
+                    "path": &path_str,
+                    "file_exists": path_buf.exists(),
+                    "parent_exists": parent_exists,
+                    "is_md": is_md_extension(&path_buf),
+                }),
+            );
+            // #endregion
+            if !is_md_extension(&path_buf) {
+                emit_toast(&app, "error", "Only .md files are allowed");
+                return Err("Only .md files are allowed".into());
+            }
+            grant_md_file(&app, &path_buf);
+            let validated = validate_md_path(&path_str)?;
+            // #region agent log
+            debug_log(
+                "A",
+                "lib.rs:save_file_dialog:validated",
+                "path validated before write",
+                serde_json::json!({ "validated": validated.to_string_lossy() }),
+            );
+            // #endregion
+            tokio::fs::write(&validated, text)
+                .await
+                .map_err(|e| map_io_error(&app, e, "saving file"))?;
             Ok(path_str)
         }
         None => Err("cancelled".into()),
@@ -394,6 +607,7 @@ pub fn run() {
 
     Builder::default()
         .manage(WatcherState(Mutex::new(None)))
+        .manage(WorkspaceState(Mutex::new(None)))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -428,10 +642,6 @@ pub fn run() {
                         .accelerator("CmdOrCtrl+S")
                         .build(app)?,
                     &PredefinedMenuItem::separator(app)?,
-                    &MenuItemBuilder::new("Export as HTML")
-                        .id("menu-export-html")
-                        .accelerator("CmdOrCtrl+E")
-                        .build(app)?,
                     &MenuItemBuilder::new("Print to PDF")
                         .id("menu-print-pdf")
                         .accelerator("CmdOrCtrl+P")
@@ -503,7 +713,6 @@ pub fn run() {
                     "open_folder" => win.emit("menu-open-folder", ()),
                     "save" => win.emit("menu-save", ()),
                     "quit" => Ok(app.exit(0)),
-                    "menu-export-html" => win.emit("menu-export-html", ()),
                     "menu-print-pdf" => win.emit("menu-print-pdf", ()),
                     "undo" => win.emit("undo", ()),
                     "redo" => win.emit("redo", ()),
@@ -553,37 +762,52 @@ mod tests {
     // ===== File Operation Tests =====
 
     #[test]
-    fn test_load_file_success() {
+    fn test_validate_md_path_success() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let file_path = temp_dir.path().join("test.md");
         let content = "# Test Content\nThis is a test file.";
-        
+
         fs::write(&file_path, content).expect("Failed to write test file");
 
-        let result = futures::executor::block_on(load_file(file_path.to_string_lossy().to_string()));
-        
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), content);
+        let validated = validate_md_path(&file_path.to_string_lossy()).expect("valid path");
+        let read = fs::read_to_string(validated).expect("read file");
+        assert_eq!(read, content);
     }
 
     #[test]
-    fn test_load_file_not_found() {
-        let result = futures::executor::block_on(load_file("/nonexistent/path/file.md".to_string()));
-        
+    fn test_validate_md_path_not_found() {
+        let result = validate_md_path("/nonexistent/path/file.md");
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_load_file_empty_file() {
+    fn test_validate_md_path_rejects_non_md() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = temp_dir.path().join("test.txt");
+        fs::write(&file_path, "content").expect("Failed to write test file");
+
+        let result = validate_md_path(&file_path.to_string_lossy());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Only .md files"));
+    }
+
+    #[test]
+    fn test_validate_md_path_empty_file() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let file_path = temp_dir.path().join("empty.md");
-        
+
         fs::write(&file_path, "").expect("Failed to write empty file");
 
-        let result = futures::executor::block_on(load_file(file_path.to_string_lossy().to_string()));
-        
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "");
+        let validated = validate_md_path(&file_path.to_string_lossy()).expect("valid path");
+        let read = fs::read_to_string(validated).expect("read file");
+        assert_eq!(read, "");
+    }
+
+    #[test]
+    fn test_is_md_extension_case_insensitive() {
+        assert!(is_md_extension(Path::new("file.MD")));
+        assert!(is_md_extension(Path::new("file.md")));
+        assert!(!is_md_extension(Path::new("file.txt")));
     }
 
     #[test]
@@ -736,7 +960,10 @@ mod tests {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         fs::write(temp_dir.path().join("test.md"), "content").expect("Failed to create file");
 
-        let result = get_directory_tree(temp_dir.path().to_string_lossy().to_string());
+        let workspace = WorkspaceState(Mutex::new(None));
+        set_workspace(&workspace, temp_dir.path());
+
+        let result = get_directory_tree_inner(&workspace, &temp_dir.path().to_string_lossy());
 
         assert!(result.is_ok());
         let tree = result.unwrap();
@@ -746,10 +973,13 @@ mod tests {
 
     #[test]
     fn test_get_directory_tree_nonexistent_path() {
-        let result = get_directory_tree("/nonexistent/directory".to_string());
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let workspace = WorkspaceState(Mutex::new(None));
+        set_workspace(&workspace, temp_dir.path());
+
+        let result = get_directory_tree_inner(&workspace, "/nonexistent/directory");
 
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "Invalid directory path");
     }
 
     #[test]
@@ -758,10 +988,27 @@ mod tests {
         let file_path = temp_dir.path().join("test.md");
         fs::write(&file_path, "content").expect("Failed to create file");
 
-        let result = get_directory_tree(file_path.to_string_lossy().to_string());
+        let workspace = WorkspaceState(Mutex::new(None));
+        set_workspace(&workspace, temp_dir.path());
+
+        let result = get_directory_tree_inner(&workspace, &file_path.to_string_lossy());
 
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "Invalid directory path");
+    }
+
+    #[test]
+    fn test_get_directory_tree_outside_workspace() {
+        let workspace_dir = TempDir::new().expect("Failed to create workspace dir");
+        let outside_dir = TempDir::new().expect("Failed to create outside dir");
+
+        let workspace = WorkspaceState(Mutex::new(None));
+        set_workspace(&workspace, workspace_dir.path());
+
+        let result = get_directory_tree_inner(&workspace, &outside_dir.path().to_string_lossy());
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("outside the open workspace"));
     }
 
     #[test]
@@ -930,9 +1177,9 @@ mod tests {
 
         fs::write(&file_path, content).expect("Failed to write file");
 
-        let result = futures::executor::block_on(load_file(file_path.to_string_lossy().to_string()));
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), content);
+        let validated = validate_md_path(&file_path.to_string_lossy()).expect("valid path");
+        let read = fs::read_to_string(validated).expect("read file");
+        assert_eq!(read, content);
     }
 
     #[test]
