@@ -19,5 +19,5 @@ export const arrowExtension: marked.TokenizerAndRendererExtension = {
     if (!out) return undefined;
     return { type: 'arrow', raw: src.slice(0, last), text: out };
   },
-  renderer(t) { return t.text; },
+  renderer(t: any) { return t.text; },
 };

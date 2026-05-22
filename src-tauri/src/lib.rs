@@ -349,7 +349,7 @@ fn log_crash(message: String){
     if let Ok(mut file) = OpenOptions::new()
         .create(true)
         .append(true)
-        .open("crash.log") 
+        .open("app_crash.log") 
     {
         let _ = writeln!(
             file,
@@ -378,7 +378,7 @@ pub fn run() {
         if let Ok(mut file) = OpenOptions::new()
             .create(true)
             .append(true)
-            .open("crash.log") 
+            .open("app_crash.log") 
         {
             let _ = writeln!(
                 file,
@@ -428,10 +428,6 @@ pub fn run() {
                         .accelerator("CmdOrCtrl+S")
                         .build(app)?,
                     &PredefinedMenuItem::separator(app)?,
-                    &MenuItemBuilder::new("Export as HTML")
-                        .id("menu-export-html")
-                        .accelerator("CmdOrCtrl+E")
-                        .build(app)?,
                     &MenuItemBuilder::new("Print to PDF")
                         .id("menu-print-pdf")
                         .accelerator("CmdOrCtrl+P")
@@ -503,7 +499,6 @@ pub fn run() {
                     "open_folder" => win.emit("menu-open-folder", ()),
                     "save" => win.emit("menu-save", ()),
                     "quit" => Ok(app.exit(0)),
-                    "menu-export-html" => win.emit("menu-export-html", ()),
                     "menu-print-pdf" => win.emit("menu-print-pdf", ()),
                     "undo" => win.emit("undo", ()),
                     "redo" => win.emit("redo", ()),
@@ -731,12 +726,12 @@ mod tests {
         assert_eq!(result[2].name, "Zebra.md");
     }
 
-    #[test]
-    fn test_get_directory_tree_valid_directory() {
+    #[tokio::test]
+    async fn test_get_directory_tree_valid_directory() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         fs::write(temp_dir.path().join("test.md"), "content").expect("Failed to create file");
 
-        let result = get_directory_tree(temp_dir.path().to_string_lossy().to_string());
+        let result = get_directory_tree(temp_dir.path().to_string_lossy().to_string()).await;
 
         assert!(result.is_ok());
         let tree = result.unwrap();
@@ -744,21 +739,21 @@ mod tests {
         assert_eq!(tree[0].name, "test.md");
     }
 
-    #[test]
-    fn test_get_directory_tree_nonexistent_path() {
-        let result = get_directory_tree("/nonexistent/directory".to_string());
+    #[tokio::test]
+    async fn test_get_directory_tree_nonexistent_path() {
+        let result = get_directory_tree("/nonexistent/directory".to_string()).await;
 
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "Invalid directory path");
     }
 
-    #[test]
-    fn test_get_directory_tree_file_path() {
+    #[tokio::test]
+    async fn test_get_directory_tree_file_path() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let file_path = temp_dir.path().join("test.md");
         fs::write(&file_path, "content").expect("Failed to create file");
 
-        let result = get_directory_tree(file_path.to_string_lossy().to_string());
+        let result = get_directory_tree(file_path.to_string_lossy().to_string()).await;
 
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "Invalid directory path");
@@ -803,41 +798,43 @@ mod tests {
     #[serial]
     fn test_log_crash_creates_file() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
-        let current_dir = std::env::current_dir().expect("Failed to get current dir");
+        let current_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
         
         // Change to temp directory for this test
-        std::env::set_current_dir(temp_dir.path()).expect("Failed to change directory");
+        let _ = std::env::set_current_dir(temp_dir.path());
 
         log_crash("Test crash message".to_string());
 
-        let crash_log_path = temp_dir.path().join("crash.log");
-        assert!(crash_log_path.exists(), "crash.log file was not created");
+        let crash_log_path = temp_dir.path().join("app_crash.log");
+        let exists = crash_log_path.exists();
         
-        let content = fs::read_to_string(&crash_log_path).expect("Failed to read crash.log");
+        // Restore original directory before assertions to be safe
+        let _ = std::env::set_current_dir(current_dir);
+
+        assert!(exists, "app_crash.log file was not created");
+        
+        let content = fs::read_to_string(&crash_log_path).expect("Failed to read app_crash.log");
         assert!(content.contains("Test crash message"), "Crash message not found in log");
         assert!(content.contains("[UI_ERROR]"), "Error type not found in log");
-
-        // Restore original directory
-        std::env::set_current_dir(current_dir).expect("Failed to restore directory");
     }
 
     #[test]
     #[serial]
     fn test_log_crash_appends_to_existing_file() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
-        let crash_log_path = temp_dir.path().join("crash.log");
+        let crash_log_path = temp_dir.path().join("app_crash.log");
         
         // Create initial log file
         fs::write(&crash_log_path, "Initial message\n").expect("Failed to create initial log");
 
-        let current_dir = std::env::current_dir().expect("Failed to get current dir");
-        std::env::set_current_dir(temp_dir.path()).expect("Failed to change directory");
+        let current_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let _ = std::env::set_current_dir(temp_dir.path());
 
         log_crash("Second message".to_string());
 
-        std::env::set_current_dir(current_dir).expect("Failed to restore directory");
+        let _ = std::env::set_current_dir(current_dir);
 
-        let content = fs::read_to_string(&crash_log_path).expect("Failed to read crash.log");
+        let content = fs::read_to_string(&crash_log_path).expect("Failed to read app_crash.log");
         assert!(content.contains("Initial message"), "Initial message was lost");
         assert!(content.contains("Second message"), "Second message was not appended");
     }
@@ -846,16 +843,16 @@ mod tests {
     #[serial]
     fn test_log_crash_includes_timestamp() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
-        let current_dir = std::env::current_dir().expect("Failed to get current dir");
+        let current_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
         
-        std::env::set_current_dir(temp_dir.path()).expect("Failed to change directory");
+        let _ = std::env::set_current_dir(temp_dir.path());
 
         log_crash("Timestamped message".to_string());
 
-        std::env::set_current_dir(current_dir).expect("Failed to restore directory");
+        let _ = std::env::set_current_dir(current_dir);
 
-        let crash_log_path = temp_dir.path().join("crash.log");
-        let content = fs::read_to_string(&crash_log_path).expect("Failed to read crash.log");
+        let crash_log_path = temp_dir.path().join("app_crash.log");
+        let content = fs::read_to_string(&crash_log_path).expect("Failed to read app_crash.log");
         
         // Check that timestamp format is present (rough check for YYYY-MM-DD HH:MM:SS)
         assert!(content.contains("20"), "Year not found in timestamp");

@@ -5,3 +5,7 @@ dist
 .env
 
 mcp.json
+crash.log
+src-tauri/crash.log
+app_crash.log
+src-tauri/app_crash.log

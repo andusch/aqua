@@ -50,7 +50,9 @@ const handleContentClick = (e: MouseEvent) => {
 };
 
 // Configure marked with highlight.js and custom extensions
-const marked = new Marked(
+const marked = new Marked();
+
+marked.use(
   markedHighlight({
     emptyLangClass: 'hljs',
     langPrefix: 'hljs language-',
@@ -58,8 +60,10 @@ const marked = new Marked(
       const language = hljs.getLanguage(lang) ? lang : 'plaintext';
       return hljs.highlight(code, { language }).value;
     },
-  }),
-).use({ extensions: [arrowExtension, checkboxExtension, latexExtension] });
+  })
+);
+
+marked.use({ extensions: [arrowExtension, checkboxExtension, latexExtension] });
 
 marked.setOptions({
   breaks: true,

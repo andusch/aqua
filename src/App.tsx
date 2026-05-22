@@ -20,7 +20,7 @@ import { fileState } from './store/fileState';
 // styles
 import "./styles/main.css";
 // utils
-import { exportToHtml, printToPdf } from './utils/export.ts';
+import { printToPdf } from './utils/export.ts';
 // theme state store
 import { themeState } from './store/themeState.ts';
 // status bar
@@ -43,16 +43,6 @@ const App: Component = () => {
     let unlisteners: Array<() => void> = [];
 
     const setupListeners = async () => {
-      
-      const u1 = await listen("menu-export-html", () => {
-        const previewEl = document.querySelector('.preview');
-        if (previewEl) {
-          exportToHtml(previewEl.innerHTML, "document");
-        }
-        else {
-          console.error("Preview element not found for export.");
-        }
-      });
 
       const u2 = await listen("menu-print-pdf", () => {
         const content = md();
@@ -75,7 +65,7 @@ const App: Component = () => {
         }
       });
 
-      unlisteners.push(u1, u2, u3, u4);
+      unlisteners.push(u2, u3, u4);
 
     };
 

@@ -28,7 +28,7 @@ export const latexExtension: TokenizerAndRendererExtension = {
     }
     return;
   },
-  renderer(token) {
+  renderer(token: any) {
     const html = katex.renderToString(token.text, {
       displayMode: token.displayMode,
       throwOnError: false,
